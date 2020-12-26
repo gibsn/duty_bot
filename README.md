@@ -1,1 +1,1 @@
-# myteam_duty_bot
+# duty_bot

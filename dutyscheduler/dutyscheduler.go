@@ -44,21 +44,28 @@ func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
 
 	sch.projects = append(sch.projects, newProject)
 
-	go sch.EventsRoutine(newProject.period, 0)
+	go sch.EventsRoutine(0)
 
 	return sch
 }
 
-func (sch *DutyScheduler) EventsRoutine(period cfg.PeriodType, projectID int) {
+func (sch *DutyScheduler) EventsRoutine(projectID int) {
+	project := sch.projects[projectID]
+
 	for {
-		newEvent := Event{
-			projectID: projectID,
-			newPerson: sch.projects[projectID].NextPerson(),
+		if project.ShouldChangePerson() {
+			project.SetTimeOfLastChange(time.Now())
+
+			sch.eventsQ <- Event{
+				projectID: projectID,
+				newPerson: sch.projects[projectID].NextPerson(),
+			}
+		} else {
+			log.Printf("info: [%s] timer triggered, but nothing will be changed", project.name)
+			continue
 		}
 
-		sch.eventsQ <- newEvent
-
-		time.Sleep(period.ToDuration())
+		time.Sleep(project.TimeTillNextChange())
 	}
 }
 
@@ -66,12 +73,12 @@ func (sch *DutyScheduler) Routine() {
 	for e := range sch.eventsQ {
 		projectName := sch.projects[e.projectID].name
 
-		log.Printf("info: new person on duty for project '%s': %s", projectName, e.newPerson)
+		log.Printf("info: [%s] new person on duty: %s", projectName, e.newPerson)
 
 		notificationText := fmt.Sprintf("Дежурный: @%s", e.newPerson)
 
 		if err := sch.notifyChannel.Send(notificationText); err != nil {
-			log.Printf("error: could not send update for project %s: %v", projectName, err)
+			log.Printf("error: [%s] could not send update: %v", projectName, err)
 		}
 	}
 }

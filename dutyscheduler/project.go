@@ -1,12 +1,18 @@
 package dutyscheduler
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
-	"sync/atomic"
+	"sync"
+	"time"
 
 	"github.com/gibsn/duty_bot/cfg"
+)
+
+var (
+	ErrNamesDoNotMatch = errors.New("name of the given does match that of the project's")
 )
 
 // Project represents an actual project with employes that take duty cyclically
@@ -17,9 +23,12 @@ type Project struct {
 	dutyApplicants []string
 	currentPerson  uint64 // idx into dutyApplicants
 
-	period cfg.PeriodType
+	timeOfLastChange time.Time // previous time the person was changed
+	period           cfg.PeriodType
 
 	notifyChannel cfg.NotifyChannelType
+
+	mu sync.RWMutex
 }
 
 func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error) {
@@ -27,6 +36,10 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 		name:          name,
 		period:        period,
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
+	}
+
+	if len(applicants) == 0 {
+		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)
 	}
 
 	for _, applicant := range strings.Split(applicants, ",") {
@@ -41,7 +54,46 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 }
 
 func (p *Project) NextPerson() string {
-	idxOfNewPerson := int(atomic.AddUint64(&p.currentPerson, 1)) % len(p.dutyApplicants)
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return p.dutyApplicants[idxOfNewPerson]
+	p.currentPerson++
+
+	return p.dutyApplicants[int(p.currentPerson)%len(p.dutyApplicants)]
+}
+
+func (p *Project) SetTimeOfLastChange(t time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.timeOfLastChange = t
+}
+
+func (p *Project) RestoreState(state *SchedulingState) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.name != state.name {
+		return fmt.Errorf("'%s' != '%s': %w", p.name, state.name, ErrNamesDoNotMatch)
+	}
+
+	p.currentPerson = state.currentPerson
+	p.timeOfLastChange = state.timeOfLastChange
+
+	return nil
+}
+
+func (p *Project) ShouldChangePerson() bool {
+	// if restarted and it is not time to change person yet
+	if time.Now().Sub(p.timeOfLastChange) < p.period.ToDuration() {
+		return false
+	}
+
+	return true
+}
+
+func (p *Project) TimeTillNextChange() time.Duration {
+	nextTriggerTime := p.timeOfLastChange.Add(p.period.ToDuration())
+
+	return nextTriggerTime.Sub(time.Now())
 }

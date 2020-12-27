@@ -2,6 +2,7 @@ package dutyscheduler
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"sync/atomic"
 
@@ -23,8 +24,9 @@ type Project struct {
 
 func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error) {
 	p := &Project{
-		name:   name,
-		period: period,
+		name:          name,
+		period:        period,
+		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
 	}
 
 	for _, applicant := range strings.Split(applicants, ",") {

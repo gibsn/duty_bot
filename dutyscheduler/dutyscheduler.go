@@ -33,6 +33,7 @@ type Event struct {
 
 type NotifyChannel interface {
 	Send(string) error
+	Shutdown() error
 }
 
 func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
@@ -124,6 +125,10 @@ func (sch *DutyScheduler) Shutdown() {
 	// now we must wait till all events are processed and all IO is finished
 	close(sch.eventsQ)
 	sch.ioWG.Wait()
+
+	if err := sch.notifyChannel.Shutdown(); err != nil {
+		log.Printf("could not shutdown communicaion channel: %v", err)
+	}
 
 	log.Printf("info: shutdown complete")
 }

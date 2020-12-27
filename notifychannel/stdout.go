@@ -15,3 +15,7 @@ func (StdOutNotifyChannel) Send(person string) error {
 
 	return err
 }
+
+func (StdOutNotifyChannel) Shutdown() error {
+	return os.Stdout.Close()
+}

@@ -21,3 +21,7 @@ func (p *Pipe) Send(text string) error {
 
 	return err
 }
+
+func (p *Pipe) Shutdown() error {
+	return p.w.Close()
+}

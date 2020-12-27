@@ -7,28 +7,34 @@ import (
 )
 
 const (
-	defaultDutyApplicants = ""
-	defaultMessagePrefix  = "Дежурный: @"
-	defaultProjectName    = ""
-	defaultPeriod         = EveryDay
-	defaultNotifyChannel  = StdOutChannelType
+	defaultDutyApplicants   = ""
+	defaultMessagePrefix    = "Дежурный: @"
+	defaultProjectName      = ""
+	defaultPeriod           = EveryDay
+	defaultNotifyChannel    = StdOutChannelType
+	defaultStatePersistence = false
 )
 
 type Config struct {
-	ProjectName    *string
+	ProjectName *string
+
 	DutyApplicants *string
 	MessagePrefix  *string
-	Period         *string
-	NotifyChannel  *string
+
+	Period        *string
+	NotifyChannel *string
+
+	StatePersistence *bool
 }
 
 func NewConfig() *Config {
 	config := &Config{
-		ProjectName:    flag.String("n", defaultProjectName, "name of the project"),
-		DutyApplicants: flag.String("d", defaultDutyApplicants, "duty applicants joined by comma"),
-		MessagePrefix:  flag.String("m", defaultProjectName, "prefix of message that will be sent to communication channel"),
-		Period:         flag.String("p", string(defaultPeriod), "how often a person changes"),
-		NotifyChannel:  flag.String("c", string(defaultNotifyChannel), "channel for scheduler notifications"),
+		ProjectName:      flag.String("n", defaultProjectName, "name of the project"),
+		DutyApplicants:   flag.String("d", defaultDutyApplicants, "duty applicants joined by comma"),
+		MessagePrefix:    flag.String("m", defaultMessagePrefix, "prefix of message that will be sent to communication channel"),
+		Period:           flag.String("p", string(defaultPeriod), "how often a person changes"),
+		NotifyChannel:    flag.String("c", string(defaultNotifyChannel), "channel for scheduler notifications"),
+		StatePersistence: flag.Bool("s", defaultStatePersistence, "save states to disk to mitigate restarts"),
 	}
 
 	flag.Parse()
@@ -62,4 +68,5 @@ func (cfg Config) Print() {
 	log.Printf("prefix: %s", *cfg.MessagePrefix)
 	log.Printf("period: %s", *cfg.Period)
 	log.Printf("notify_channel: %s", *cfg.NotifyChannel)
+	log.Printf("state_persistence: %t", *cfg.StatePersistence)
 }

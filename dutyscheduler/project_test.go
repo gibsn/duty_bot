@@ -1,6 +1,7 @@
 package dutyscheduler
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -109,5 +110,38 @@ func TestProjectRestoreStateFails(t *testing.T) {
 			t.Errorf("testcase '%v': must have failed", testcase.input)
 			continue
 		}
+	}
+}
+
+func TestProjectDumpState(t *testing.T) {
+	project, _ := NewProject("test_project", applicants2, cfg.EveryHour)
+
+	currTime := time.Now().Truncate(time.Second)
+	project.SetTimeOfLastChange(currTime)
+
+	buf := bytes.NewBuffer(nil)
+
+	if err := project.DumpState(buf); err != nil {
+		t.Errorf("could not dump state: %v", err)
+		return
+	}
+
+	state, err := NewSchedulingState(buf)
+	if err != nil {
+		t.Errorf("could not parse state: %v", err)
+		return
+	}
+
+	if state.name != project.name {
+		t.Errorf("expected '%s', got '%s'", project.name, state.name)
+		return
+	}
+	if state.currentPerson != project.currentPerson {
+		t.Errorf("expected '%d', got '%d'", project.currentPerson, state.currentPerson)
+		return
+	}
+	if !state.timeOfLastChange.Equal(currTime) {
+		t.Errorf("expected '%s', got '%s'", currTime, state.timeOfLastChange)
+		return
 	}
 }

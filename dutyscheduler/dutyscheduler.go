@@ -15,14 +15,18 @@ import (
 // DutyScheduler schedules persons of duty in given periods of time.
 // On any change it sends a notification to the given communication channel.
 type DutyScheduler struct {
+	cfg *cfg.Config
+
 	projects []*Project
 	eventsQ  chan Event
+	statesQ  chan *Project
 
 	notifyChannel NotifyChannel // a communication channel to send updates to (like myteam)
 
-	shutdown   chan struct{}
-	ioWG       sync.WaitGroup // to wait for IO gororutines to finish
-	triggersWG sync.WaitGroup // to wait for gorutines triggering events
+	shutdownInit     chan struct{}
+	finishedShutdown chan struct{}
+	ioWG             sync.WaitGroup // to wait for IO gororutines to finish
+	triggersWG       sync.WaitGroup // to wait for gorutines triggering events
 }
 
 // Event represents a change for a given project
@@ -38,9 +42,12 @@ type NotifyChannel interface {
 
 func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
 	sch := &DutyScheduler{
-		eventsQ:       make(chan Event, 1),
-		notifyChannel: ch,
-		shutdown:      make(chan struct{}),
+		cfg:              config,
+		eventsQ:          make(chan Event, 1),
+		statesQ:          make(chan *Project, 1),
+		notifyChannel:    ch,
+		shutdownInit:     make(chan struct{}),
+		finishedShutdown: make(chan struct{}),
 	}
 
 	newProject, err := NewProjectFromConfig(config)
@@ -52,12 +59,16 @@ func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
 	sch.projects = append(sch.projects, newProject)
 	sch.triggersWG.Add(1)
 
-	go sch.EventsRoutine(0)
+	go sch.eventsRoutine(0)
 
 	signalQ := make(chan os.Signal)
 	go sch.signalHandler(signalQ)
 
 	signal.Notify(signalQ, syscall.SIGTERM, syscall.SIGINT)
+
+	sch.ioWG.Add(2)
+	go sch.stateSaverRoutine()
+	go sch.notificaionSenderRoutine()
 
 	return sch
 }
@@ -69,7 +80,17 @@ func (sch *DutyScheduler) signalHandler(q chan os.Signal) {
 	}
 }
 
-func (sch *DutyScheduler) EventsRoutine(projectID int) {
+func (sch *DutyScheduler) dumpStateToDiskAsync(p *Project) {
+	select {
+	case sch.statesQ <- p:
+		return
+	default:
+	}
+
+	log.Printf("error: [%s] could not dump state to disk: queue is full", p.name)
+}
+
+func (sch *DutyScheduler) eventsRoutine(projectID int) {
 	defer sch.triggersWG.Done()
 
 	project := sch.projects[projectID]
@@ -77,6 +98,10 @@ func (sch *DutyScheduler) EventsRoutine(projectID int) {
 	for {
 		if project.ShouldChangePerson() {
 			project.SetTimeOfLastChange(time.Now())
+
+			if *sch.cfg.StatePersistence {
+				sch.dumpStateToDiskAsync(project)
+			}
 
 			sch.eventsQ <- Event{
 				projectID: projectID,
@@ -92,14 +117,13 @@ func (sch *DutyScheduler) EventsRoutine(projectID int) {
 		select {
 		case <-timer.C:
 			// pass
-		case <-sch.shutdown:
+		case <-sch.shutdownInit:
 			return
 		}
 	}
 }
 
-func (sch *DutyScheduler) Routine() {
-	sch.ioWG.Add(1)
+func (sch *DutyScheduler) notificaionSenderRoutine() {
 	defer sch.ioWG.Done()
 
 	for e := range sch.eventsQ {
@@ -115,15 +139,54 @@ func (sch *DutyScheduler) Routine() {
 	}
 }
 
+func (sch *DutyScheduler) stateSaverRoutine() {
+	defer sch.ioWG.Done()
+
+	for p := range sch.statesQ {
+		if err := sch.stateSaverRoutineImpl(p); err != nil {
+			log.Printf("error: [%s] could not dump state to disk, scheduling will start "+
+				"from beginning in case of restart", p.name,
+			)
+			continue
+		}
+
+		log.Printf("info: [%s] state has been successfully saved to disk", p.name)
+	}
+}
+
+func (sch *DutyScheduler) stateSaverRoutineImpl(p *Project) error {
+	file, err := os.Create(p.name + ".state")
+	if err != nil {
+		return fmt.Errorf("could not create file: %w", err)
+	}
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			err = fmt.Errorf("could not close file: %w", err)
+		}
+	}()
+
+	if err := p.DumpState(file); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sch *DutyScheduler) Routine() {
+	<-sch.finishedShutdown
+}
+
 func (sch *DutyScheduler) Shutdown() {
 	log.Printf("info: triggering shutdown")
 
 	// goroutines triggering events must be stopped first
-	close(sch.shutdown)
+	close(sch.shutdownInit)
 	sch.triggersWG.Wait()
 
 	// now we must wait till all events are processed and all IO is finished
 	close(sch.eventsQ)
+	close(sch.statesQ)
 	sch.ioWG.Wait()
 
 	if err := sch.notifyChannel.Shutdown(); err != nil {
@@ -131,4 +194,6 @@ func (sch *DutyScheduler) Shutdown() {
 	}
 
 	log.Printf("info: shutdown complete")
+
+	close(sch.finishedShutdown)
 }

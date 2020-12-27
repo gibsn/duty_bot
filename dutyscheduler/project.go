@@ -1,9 +1,12 @@
 package dutyscheduler
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,7 +32,7 @@ type Project struct {
 	messagePrefix string
 	notifyChannel cfg.NotifyChannelType
 
-	mu sync.RWMutex
+	mu *sync.RWMutex
 }
 
 func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error) {
@@ -37,6 +40,7 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 		name:          name,
 		period:        period,
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
+		mu:            &sync.RWMutex{},
 	}
 
 	if len(applicants) == 0 {
@@ -60,6 +64,7 @@ func NewProjectFromConfig(config *cfg.Config) (*Project, error) {
 		messagePrefix: *config.MessagePrefix,
 		period:        cfg.PeriodType(*config.Period),
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
+		mu:            &sync.RWMutex{},
 	}
 
 	if len(*config.DutyApplicants) == 0 {
@@ -120,4 +125,36 @@ func (p *Project) TimeTillNextChange() time.Duration {
 	nextTriggerTime := p.timeOfLastChange.Add(p.period.ToDuration())
 
 	return nextTriggerTime.Sub(time.Now())
+}
+
+func (p *Project) DumpState(w io.StringWriter) error {
+	buf := bytes.NewBuffer(nil)
+
+	buf.WriteString(p.name)
+	buf.WriteRune('\n')
+	buf.WriteString(strconv.Itoa(int(p.currentPerson)))
+	buf.WriteRune('\n')
+	buf.WriteString(strconv.Itoa(int(p.timeOfLastChange.Unix())))
+	buf.WriteRune('\n')
+
+	if err := writeFull(w, buf.String()); err != nil {
+		return fmt.Errorf("could not write: %w", err)
+	}
+
+	return nil
+}
+
+func writeFull(w io.StringWriter, s string) error {
+	for {
+		n, err := w.WriteString(s)
+		if err != nil {
+			return err
+		}
+
+		if n == len(s) {
+			return nil
+		}
+
+		s = s[n:]
+	}
 }

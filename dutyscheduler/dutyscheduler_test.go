@@ -11,26 +11,18 @@ import (
 )
 
 func TestDutyScheduler(t *testing.T) {
-	var (
-		projectName    = "test_project"
-		dutyApplicants = "test1,test2"
-		messagePrefix  = ""
-		period         = string(cfg.EverySecond)
-	)
-
-	config := &cfg.Config{
-		ProjectName:    &projectName,
-		DutyApplicants: &dutyApplicants,
-		MessagePrefix:  &messagePrefix,
-		Period:         &period,
-	}
+	config := cfg.NewConfig()
+	*config.ProjectName = "test_project"
+	*config.DutyApplicants = "test1,test2"
+	*config.MessagePrefix = ""
+	*config.Period = string(cfg.EverySecond)
 
 	pipe := notifychannel.NewPipe()
 
 	sch := NewDutyScheduler(config, pipe)
 
 	go func() {
-		validateIncomingEvents(t, dutyApplicants, pipe)
+		validateIncomingEvents(t, *config.DutyApplicants, pipe)
 		sch.Shutdown()
 	}()
 
@@ -96,7 +88,7 @@ func (sch *DutyScheduler) watchdog(t *testing.T) {
 	const timeToWait = 10 * time.Second
 
 	select {
-	case <-sch.shutdown:
+	case <-sch.shutdownInit:
 		return
 	case <-time.Tick(timeToWait):
 		t.Errorf("no response within %s", timeToWait)

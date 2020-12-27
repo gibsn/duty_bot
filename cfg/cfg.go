@@ -11,7 +11,7 @@ const (
 	defaultMessagePrefix    = "Дежурный: @"
 	defaultProjectName      = ""
 	defaultPeriod           = EveryDay
-	defaultNotifyChannel    = StdOutChannelType
+	defaultNotifyChannel    = EmptyChannelType
 	defaultStatePersistence = false
 )
 

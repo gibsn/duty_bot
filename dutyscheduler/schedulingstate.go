@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,10 @@ const (
 	fieldNameIdx           = 0
 	fieldCurrentPersonIdx  = 1
 	fieldTsOfLastChangeIdx = 2
+)
+
+const (
+	diskSuffix = ".state"
 )
 
 var (
@@ -69,4 +74,8 @@ func NewSchedulingState(r io.Reader) (*SchedulingState, error) {
 	}
 
 	return newState, nil
+}
+
+func IsStateFile(s string) bool {
+	return strings.HasSuffix(s, diskSuffix)
 }

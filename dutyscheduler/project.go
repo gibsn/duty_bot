@@ -82,6 +82,20 @@ func NewProjectFromConfig(config *cfg.Config) (*Project, error) {
 	return p, nil
 }
 
+func (p *Project) CurrentPerson() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.dutyApplicants[int(p.currentPerson)%len(p.dutyApplicants)]
+}
+
+func (p *Project) LastChange() time.Time {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.timeOfLastChange
+}
+
 func (p *Project) NextPerson() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()

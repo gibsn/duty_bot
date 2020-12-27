@@ -19,7 +19,8 @@ func TestDutyScheduler(t *testing.T) {
 
 	pipe := notifychannel.NewPipe()
 
-	sch := NewDutyScheduler(config, pipe)
+	sch := NewDutyScheduler(config)
+	sch.SetNotifyChannel(pipe)
 
 	go func() {
 		validateIncomingEvents(t, *config.DutyApplicants, pipe)

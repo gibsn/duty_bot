@@ -5,7 +5,6 @@ import (
 
 	"github.com/gibsn/duty_bot/cfg"
 	"github.com/gibsn/duty_bot/dutyscheduler"
-	"github.com/gibsn/duty_bot/notifychannel"
 )
 
 func main() {
@@ -21,7 +20,7 @@ func main() {
 
 	log.Println("info: will start scheduling now")
 
-	sch := dutyscheduler.NewDutyScheduler(config, notifychannel.StdOutNotifyChannel{})
+	sch := dutyscheduler.NewDutyScheduler(config)
 	sch.Routine()
 
 	log.Println("info: exiting")

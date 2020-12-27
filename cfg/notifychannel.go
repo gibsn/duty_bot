@@ -11,7 +11,7 @@ const (
 func (ch NotifyChannelType) Validate() error {
 	switch ch {
 	case EmptyChannelType:
-		return ErrMustNotBeEmpty
+		fallthrough
 	case StdOutChannelType:
 		return nil
 	}

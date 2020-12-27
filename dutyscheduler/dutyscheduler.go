@@ -2,6 +2,7 @@ package dutyscheduler
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gibsn/duty_bot/cfg"
+	"github.com/gibsn/duty_bot/notifychannel"
 )
 
 // DutyScheduler schedules persons of duty in given periods of time.
@@ -40,15 +42,16 @@ type NotifyChannel interface {
 	Shutdown() error
 }
 
-func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
+func NewDutyScheduler(config *cfg.Config) *DutyScheduler {
 	sch := &DutyScheduler{
 		cfg:              config,
 		eventsQ:          make(chan Event, 1),
 		statesQ:          make(chan *Project, 1),
-		notifyChannel:    ch,
 		shutdownInit:     make(chan struct{}),
 		finishedShutdown: make(chan struct{}),
 	}
+
+	sch.initNotifyChannel()
 
 	newProject, err := NewProjectFromConfig(config)
 	if err != nil {
@@ -57,24 +60,92 @@ func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
 	}
 
 	sch.projects = append(sch.projects, newProject)
-	sch.triggersWG.Add(1)
 
-	go sch.eventsRoutine(0)
+	if *sch.cfg.StatePersistence {
+		sch.restoreStates()
+	}
 
-	signalQ := make(chan os.Signal)
-	go sch.signalHandler(signalQ)
-
-	signal.Notify(signalQ, syscall.SIGTERM, syscall.SIGINT)
+	go sch.signalHandler()
 
 	sch.ioWG.Add(2)
 	go sch.stateSaverRoutine()
 	go sch.notificaionSenderRoutine()
 
+	for i := range sch.projects {
+		sch.triggersWG.Add(1)
+		go sch.eventsRoutine(i)
+	}
+
 	return sch
 }
 
-func (sch *DutyScheduler) signalHandler(q chan os.Signal) {
-	for s := range q {
+func (sch *DutyScheduler) initNotifyChannel() {
+	switch cfg.NotifyChannelType(*sch.cfg.NotifyChannel) {
+	case cfg.EmptyChannelType:
+		sch.notifyChannel = notifychannel.EmptyNotifyChannel{}
+	case cfg.StdOutChannelType:
+		sch.notifyChannel = notifychannel.StdOutNotifyChannel{}
+	}
+}
+
+func (sch *DutyScheduler) getProjectByName(name string) *Project {
+	for _, p := range sch.projects {
+		if p.name == name {
+			return p
+		}
+	}
+
+	return nil
+}
+
+func (sch *DutyScheduler) restoreStates() {
+	fileInfos, err := ioutil.ReadDir("./")
+	if err != nil {
+		log.Printf("error: could not restore states: %v", err)
+		return
+	}
+
+	for _, fileInfo := range fileInfos {
+		fileName := fileInfo.Name()
+
+		if !IsStateFile(fileName) {
+			continue
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			log.Printf("error: could not restore states from file '%s': %v", fileName, err)
+			continue
+		}
+
+		state, err := NewSchedulingState(file)
+		if err != nil {
+			log.Printf("error: could not restore states from file '%s': %v", fileName, err)
+			continue
+		}
+
+		project := sch.getProjectByName(state.name)
+		if project == nil {
+			continue
+		}
+
+		if err := project.RestoreState(state); err != nil {
+			log.Printf("error: could not restore states for project '%s': %v", project.name, err)
+			continue
+		}
+
+		log.Printf("info: successfully restored state for project '%s', "+
+			"current person of duty is %s, last change was %s",
+			project.name, project.CurrentPerson(), project.LastChange(),
+		)
+	}
+}
+
+func (sch *DutyScheduler) signalHandler() {
+	signalQ := make(chan os.Signal)
+	signal.Notify(signalQ, syscall.SIGTERM, syscall.SIGINT)
+
+	for s := range signalQ {
 		log.Printf("info: received %s", s)
 		sch.Shutdown()
 	}
@@ -109,7 +180,6 @@ func (sch *DutyScheduler) eventsRoutine(projectID int) {
 			}
 		} else {
 			log.Printf("info: [%s] timer triggered, but nothing will be changed", project.name)
-			continue
 		}
 
 		timer := time.NewTimer(project.TimeTillNextChange())
@@ -175,6 +245,10 @@ func (sch *DutyScheduler) stateSaverRoutineImpl(p *Project) error {
 
 func (sch *DutyScheduler) Routine() {
 	<-sch.finishedShutdown
+}
+
+func (sch *DutyScheduler) SetNotifyChannel(ch NotifyChannel) {
+	sch.notifyChannel = ch
 }
 
 func (sch *DutyScheduler) Shutdown() {

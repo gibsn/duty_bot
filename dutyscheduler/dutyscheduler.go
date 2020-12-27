@@ -42,7 +42,7 @@ type NotifyChannel interface {
 	Shutdown() error
 }
 
-func NewDutyScheduler(config *cfg.Config) *DutyScheduler {
+func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 	sch := &DutyScheduler{
 		cfg:              config,
 		eventsQ:          make(chan Event, 1),
@@ -51,12 +51,17 @@ func NewDutyScheduler(config *cfg.Config) *DutyScheduler {
 		finishedShutdown: make(chan struct{}),
 	}
 
-	sch.initNotifyChannel()
+	log.Println("info: initialising")
+
+	if err := sch.initNotifyChannel(); err != nil {
+		return nil, fmt.Errorf("could not init notification channel: %w", err)
+	}
+
+	log.Println("info: initialised notification channel")
 
 	newProject, err := NewProjectFromConfig(config)
 	if err != nil {
-		log.Printf("warning: will skip project with invalid project: %v", err)
-		return sch
+		return nil, fmt.Errorf("invalid project: %w", err)
 	}
 
 	sch.projects = append(sch.projects, newProject)
@@ -76,16 +81,22 @@ func NewDutyScheduler(config *cfg.Config) *DutyScheduler {
 		go sch.eventsRoutine(i)
 	}
 
-	return sch
+	log.Printf("info: successfully initialised")
+
+	return sch, nil
 }
 
-func (sch *DutyScheduler) initNotifyChannel() {
+func (sch *DutyScheduler) initNotifyChannel() (err error) {
 	switch cfg.NotifyChannelType(*sch.cfg.NotifyChannel) {
 	case cfg.EmptyChannelType:
 		sch.notifyChannel = notifychannel.EmptyNotifyChannel{}
 	case cfg.StdOutChannelType:
 		sch.notifyChannel = notifychannel.StdOutNotifyChannel{}
+	case cfg.MyTeamChannelType:
+		sch.notifyChannel, err = notifychannel.NewMyTeamNotifyChannel(sch.cfg.MyTeam)
 	}
+
+	return err
 }
 
 func (sch *DutyScheduler) getProjectByName(name string) *Project {
@@ -201,7 +212,7 @@ func (sch *DutyScheduler) notificaionSenderRoutine() {
 
 		log.Printf("info: [%s] new person on duty: %s", project.name, e.newPerson)
 
-		notificationText := fmt.Sprintf("%s%s", project.messagePrefix, e.newPerson)
+		notificationText := fmt.Sprintf(project.messagePattern, e.newPerson)
 
 		if err := sch.notifyChannel.Send(notificationText); err != nil {
 			log.Printf("error: [%s] could not send update: %v", project.name, err)

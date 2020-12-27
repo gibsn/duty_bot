@@ -29,8 +29,8 @@ type Project struct {
 	timeOfLastChange time.Time // previous time the person was changed
 	period           cfg.PeriodType
 
-	messagePrefix string
-	notifyChannel cfg.NotifyChannelType
+	messagePattern string
+	notifyChannel  cfg.NotifyChannelType
 
 	mu *sync.RWMutex
 }
@@ -60,11 +60,11 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 
 func NewProjectFromConfig(config *cfg.Config) (*Project, error) {
 	p := &Project{
-		name:          *config.ProjectName,
-		messagePrefix: *config.MessagePrefix,
-		period:        cfg.PeriodType(*config.Period),
-		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
-		mu:            &sync.RWMutex{},
+		name:           *config.ProjectName,
+		messagePattern: *config.MessagePattern,
+		period:         cfg.PeriodType(*config.Period),
+		currentPerson:  math.MaxUint64, // so that the first NextPerson call returns the first person
+		mu:             &sync.RWMutex{},
 	}
 
 	if len(*config.DutyApplicants) == 0 {

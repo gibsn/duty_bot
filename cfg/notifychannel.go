@@ -13,6 +13,8 @@ func (ch NotifyChannelType) Validate() error {
 	case EmptyChannelType:
 		fallthrough
 	case StdOutChannelType:
+		fallthrough
+	case MyTeamChannelType:
 		return nil
 	}
 

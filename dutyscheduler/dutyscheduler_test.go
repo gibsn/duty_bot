@@ -14,12 +14,12 @@ func TestDutyScheduler(t *testing.T) {
 	config := cfg.NewConfig()
 	*config.ProjectName = "test_project"
 	*config.DutyApplicants = "test1,test2"
-	*config.MessagePrefix = ""
+	*config.MessagePattern = "%s"
 	*config.Period = string(cfg.EverySecond)
 
 	pipe := notifychannel.NewPipe()
 
-	sch := NewDutyScheduler(config)
+	sch, _ := NewDutyScheduler(config)
 	sch.SetNotifyChannel(pipe)
 
 	go func() {

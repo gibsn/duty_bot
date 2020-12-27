@@ -18,9 +18,11 @@ func main() {
 
 	config.Print()
 
-	log.Println("info: will start scheduling now")
+	sch, err := dutyscheduler.NewDutyScheduler(config)
+	if err != nil {
+		log.Fatalf("fatal: could not initialise scheduler: %v", err)
+	}
 
-	sch := dutyscheduler.NewDutyScheduler(config)
 	sch.Routine()
 
 	log.Println("info: exiting")

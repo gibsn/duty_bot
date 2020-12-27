@@ -3,6 +3,10 @@ package dutyscheduler
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gibsn/duty_bot/cfg"
@@ -15,6 +19,10 @@ type DutyScheduler struct {
 	eventsQ  chan Event
 
 	notifyChannel NotifyChannel // a communication channel to send updates to (like myteam)
+
+	shutdown   chan struct{}
+	ioWG       sync.WaitGroup // to wait for IO gororutines to finish
+	triggersWG sync.WaitGroup // to wait for gorutines triggering events
 }
 
 // Event represents a change for a given project
@@ -31,25 +39,38 @@ func NewDutyScheduler(config *cfg.Config, ch NotifyChannel) *DutyScheduler {
 	sch := &DutyScheduler{
 		eventsQ:       make(chan Event, 1),
 		notifyChannel: ch,
+		shutdown:      make(chan struct{}),
 	}
 
-	newProject, err := NewProject(
-		*config.ProjectName, *config.DutyApplicants, cfg.PeriodType(*config.Period),
-	)
-
+	newProject, err := NewProjectFromConfig(config)
 	if err != nil {
 		log.Printf("warning: will skip project with invalid project: %v", err)
 		return sch
 	}
 
 	sch.projects = append(sch.projects, newProject)
+	sch.triggersWG.Add(1)
 
 	go sch.EventsRoutine(0)
+
+	signalQ := make(chan os.Signal)
+	go sch.signalHandler(signalQ)
+
+	signal.Notify(signalQ, syscall.SIGTERM, syscall.SIGINT)
 
 	return sch
 }
 
+func (sch *DutyScheduler) signalHandler(q chan os.Signal) {
+	for s := range q {
+		log.Printf("info: received %s", s)
+		sch.Shutdown()
+	}
+}
+
 func (sch *DutyScheduler) EventsRoutine(projectID int) {
+	defer sch.triggersWG.Done()
+
 	project := sch.projects[projectID]
 
 	for {
@@ -65,20 +86,44 @@ func (sch *DutyScheduler) EventsRoutine(projectID int) {
 			continue
 		}
 
-		time.Sleep(project.TimeTillNextChange())
+		timer := time.NewTimer(project.TimeTillNextChange())
+
+		select {
+		case <-timer.C:
+			// pass
+		case <-sch.shutdown:
+			return
+		}
 	}
 }
 
 func (sch *DutyScheduler) Routine() {
+	sch.ioWG.Add(1)
+	defer sch.ioWG.Done()
+
 	for e := range sch.eventsQ {
-		projectName := sch.projects[e.projectID].name
+		project := sch.projects[e.projectID]
 
-		log.Printf("info: [%s] new person on duty: %s", projectName, e.newPerson)
+		log.Printf("info: [%s] new person on duty: %s", project.name, e.newPerson)
 
-		notificationText := fmt.Sprintf("Дежурный: @%s", e.newPerson)
+		notificationText := fmt.Sprintf("%s%s", project.messagePrefix, e.newPerson)
 
 		if err := sch.notifyChannel.Send(notificationText); err != nil {
-			log.Printf("error: [%s] could not send update: %v", projectName, err)
+			log.Printf("error: [%s] could not send update: %v", project.name, err)
 		}
 	}
+}
+
+func (sch *DutyScheduler) Shutdown() {
+	log.Printf("info: triggering shutdown")
+
+	// goroutines triggering events must be stopped first
+	close(sch.shutdown)
+	sch.triggersWG.Wait()
+
+	// now we must wait till all events are processed and all IO is finished
+	close(sch.eventsQ)
+	sch.ioWG.Wait()
+
+	log.Printf("info: shutdown complete")
 }

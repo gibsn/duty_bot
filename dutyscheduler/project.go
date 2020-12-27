@@ -26,6 +26,7 @@ type Project struct {
 	timeOfLastChange time.Time // previous time the person was changed
 	period           cfg.PeriodType
 
+	messagePrefix string
 	notifyChannel cfg.NotifyChannelType
 
 	mu sync.RWMutex
@@ -43,6 +44,29 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 	}
 
 	for _, applicant := range strings.Split(applicants, ",") {
+		p.dutyApplicants = append(p.dutyApplicants, applicant)
+	}
+
+	if len(p.dutyApplicants) == 0 {
+		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)
+	}
+
+	return p, nil
+}
+
+func NewProjectFromConfig(config *cfg.Config) (*Project, error) {
+	p := &Project{
+		name:          *config.ProjectName,
+		messagePrefix: *config.MessagePrefix,
+		period:        cfg.PeriodType(*config.Period),
+		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
+	}
+
+	if len(*config.DutyApplicants) == 0 {
+		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)
+	}
+
+	for _, applicant := range strings.Split(*config.DutyApplicants, ",") {
 		p.dutyApplicants = append(p.dutyApplicants, applicant)
 	}
 

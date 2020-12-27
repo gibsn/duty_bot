@@ -9,7 +9,7 @@ duty_bot:
 	go build -mod vendor -o ./bin/$@ $(MODULE_NAME)
 
 test:
-	go test -v $(TEST_PACKAGES)
+	go test -mod vendor -v $(TEST_PACKAGES)
 
 clean:
 	rm -rf ./bin

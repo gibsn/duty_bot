@@ -8,6 +8,8 @@ import (
 	"github.com/gibsn/duty_bot/cfg"
 )
 
+// Project represents an actual project with employes that take duty cyclically
+// after given period of time
 type Project struct {
 	name string
 

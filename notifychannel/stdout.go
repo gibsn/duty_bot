@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+// StdOutNotifyChannel is a notify channel that prints out every
+// notification to stdout. Mostly used for debugging
 type StdOutNotifyChannel struct {
 }
 

@@ -1,5 +1,9 @@
 package cfg
 
+import (
+	"time"
+)
+
 type PeriodType string
 
 const (
@@ -25,4 +29,21 @@ func (t PeriodType) Validate() error {
 	}
 
 	return ErrNotSupported
+}
+
+func (t PeriodType) ToDuration() time.Duration {
+	switch t {
+	case EverySecond:
+		return time.Second
+	case EveryMinute:
+		return time.Minute
+	case EveryHour:
+		return time.Hour
+	case EveryDay:
+		return 24 * time.Hour
+	case EveryWeek:
+		return 7 * 24 * time.Hour
+	}
+
+	panic("unsupported period type")
 }

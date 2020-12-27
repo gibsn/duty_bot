@@ -8,6 +8,8 @@ import (
 	"github.com/gibsn/duty_bot/cfg"
 )
 
+// DutyScheduler schedules persons of duty in given periods of time.
+// On any change it sends a notification to the given communication channel.
 type DutyScheduler struct {
 	projects []*Project
 	eventsQ  chan Event
@@ -15,6 +17,7 @@ type DutyScheduler struct {
 	notifyChannel NotifyChannel // a communication channel to send updates to (like myteam)
 }
 
+// Event represents a change for a given project
 type Event struct {
 	projectID int
 	newPerson string
@@ -55,7 +58,7 @@ func (sch *DutyScheduler) EventsRoutine(period cfg.PeriodType, projectID int) {
 
 		sch.eventsQ <- newEvent
 
-		time.Sleep(1 * time.Second) // TODO change to period from config
+		time.Sleep(period.ToDuration())
 	}
 }
 

@@ -4,15 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/mail-ru-im/bot-golang"
 
 	"github.com/gibsn/duty_bot/cfg"
-)
-
-const (
-	myTeamAPITimeout = 5 * time.Second
 )
 
 type MyTeamNotifyChannel struct {
@@ -23,7 +18,7 @@ type MyTeamNotifyChannel struct {
 
 func NewMyTeamNotifyChannel(config *cfg.MyTeamConfig) (*MyTeamNotifyChannel, error) {
 	// currently myteam library has no option to provide a timeout
-	http.DefaultClient.Timeout = myTeamAPITimeout
+	http.DefaultClient.Timeout = *config.MyTeamTimeout
 
 	bot, err := botgolang.NewBot(*config.MyTeamToken, botgolang.BotApiURL(*config.MyTeamAPIURL))
 	if err != nil {

@@ -193,6 +193,7 @@ func (sch *DutyScheduler) eventsRoutine(projectID int) {
 			log.Printf("info: [%s] timer triggered, but nothing will be changed", project.name)
 		}
 
+		log.Printf("info: [%s] next change in %s", project.name, project.TimeTillNextChange())
 		timer := time.NewTimer(project.TimeTillNextChange())
 
 		select {

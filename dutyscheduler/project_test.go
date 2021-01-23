@@ -145,3 +145,71 @@ func TestProjectDumpState(t *testing.T) {
 		return
 	}
 }
+
+type shouldChangePersonTestcase struct {
+	project Project
+	timeNow time.Time
+	output  bool
+}
+
+func TestProjectShouldChangePerson(t *testing.T) {
+	testcases := []shouldChangePersonTestcase{
+		{
+			project: Project{
+				timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Second),
+				period:           cfg.EverySecond,
+			},
+			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:  true,
+		},
+		{
+			project: Project{
+				timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Minute),
+				period:           cfg.EveryMinute,
+			},
+			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:  true,
+		},
+		{
+			project: Project{
+				timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Hour),
+				period:           cfg.EveryHour,
+			},
+			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:  true,
+		},
+		{
+			project: Project{
+				timeOfLastChange: time.Unix(1611266369, 0).Add(-25 * time.Hour),
+				period:           cfg.EveryDay,
+			},
+			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:  true,
+		},
+		{
+			project: Project{
+				timeOfLastChange: time.Unix(1611266369, 0),
+				period:           cfg.EverySecond,
+			},
+			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:  false,
+		},
+		{
+			// no change at weekend
+			project: Project{
+				timeOfLastChange: time.Unix(1611351955, 0),
+				period:           cfg.EverySecond,
+			},
+			timeNow: time.Unix(1611351955, 0), // Sat Jan 23 00:45:55 MSK 2021
+			output:  false,
+		},
+	}
+
+	for _, testcase := range testcases {
+		output := testcase.project.shouldChangePerson(testcase.timeNow)
+		if output != testcase.output {
+			t.Errorf("testcase '%v': expected '%t', got '%t'", testcase, testcase.output, output)
+			continue
+		}
+	}
+}

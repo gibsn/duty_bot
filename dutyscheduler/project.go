@@ -126,9 +126,21 @@ func (p *Project) RestoreState(state *SchedulingState) error {
 	return nil
 }
 
+// ShouldChangePerson reports whether the person of duty should be change
+// given the circumstances
 func (p *Project) ShouldChangePerson() bool {
+	return p.shouldChangePerson(time.Now())
+}
+
+// shouldChangePerson implements the main logic for ShouldChangePerson
+func (p *Project) shouldChangePerson(timeNow time.Time) bool {
 	// if restarted and it is not time to change person yet
-	if time.Now().Sub(p.timeOfLastChange) < p.period.ToDuration() {
+	if timeNow.Sub(p.timeOfLastChange) < p.period.ToDuration() {
+		return false
+	}
+
+	// no duties at weekend (yet)
+	if timeNow.Weekday() == time.Sunday || timeNow.Weekday() == time.Saturday {
 		return false
 	}
 

@@ -193,7 +193,7 @@ func TestProjectShouldChangePerson(t *testing.T) {
 		{ // no change at weekend
 			timeOfLastChange: time.Unix(1611351955, 0),
 			period:           cfg.EverySecond,
-			timeNow:          time.Unix(1611351956, 0), // Sat Jan 23 00:45:55 MSK 2021
+			timeNow:          time.Unix(1611362756, 0), // Sat Jan 23 03:45:55 MSK 2021
 			output:           false,
 		},
 	}

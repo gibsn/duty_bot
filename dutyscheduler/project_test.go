@@ -2,6 +2,7 @@ package dutyscheduler
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +154,10 @@ type shouldChangePersonTestcase struct {
 	output           bool
 }
 
+func (t shouldChangePersonTestcase) String() string {
+	return fmt.Sprintf("%s %s %s %t", t.timeOfLastChange, t.period, t.timeNow, t.output)
+}
+
 func TestProjectShouldChangePerson(t *testing.T) {
 	testcases := []shouldChangePersonTestcase{
 		{
@@ -185,11 +190,10 @@ func TestProjectShouldChangePerson(t *testing.T) {
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           false,
 		},
-		{
-			// no change at weekend
+		{ // no change at weekend
 			timeOfLastChange: time.Unix(1611351955, 0),
 			period:           cfg.EverySecond,
-			timeNow:          time.Unix(1611351956, 0), // Sat Jan 23 00:45:55 MSK 2021
+			timeNow:          time.Unix(1611362756, 0), // Sat Jan 23 03:45:55 MSK 2021
 			output:           false,
 		},
 	}
@@ -201,7 +205,7 @@ func TestProjectShouldChangePerson(t *testing.T) {
 
 		output := project.shouldChangePerson(testcase.timeNow)
 		if output != testcase.output {
-			t.Errorf("testcase '%v': expected '%t', got '%t'", testcase, testcase.output, output)
+			t.Errorf("testcase '%s': expected '%t', got '%t'", testcase, testcase.output, output)
 			continue
 		}
 	}

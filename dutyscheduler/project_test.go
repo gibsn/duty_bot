@@ -132,8 +132,8 @@ func TestProjectDumpState(t *testing.T) {
 		return
 	}
 
-	if state.name != project.name {
-		t.Errorf("expected '%s', got '%s'", project.name, state.name)
+	if state.name != project.Name() {
+		t.Errorf("expected '%s', got '%s'", project.Name(), state.name)
 		return
 	}
 	if state.currentPerson != project.currentPerson {
@@ -147,68 +147,102 @@ func TestProjectDumpState(t *testing.T) {
 }
 
 type shouldChangePersonTestcase struct {
-	project Project
-	timeNow time.Time
-	output  bool
+	timeOfLastChange time.Time
+	period           cfg.PeriodType
+	timeNow          time.Time
+	output           bool
 }
 
 func TestProjectShouldChangePerson(t *testing.T) {
 	testcases := []shouldChangePersonTestcase{
 		{
-			project: Project{
-				timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Second),
-				period:           cfg.EverySecond,
-			},
-			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
-			output:  true,
+			timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Second),
+			period:           cfg.EverySecond,
+			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:           true,
 		},
 		{
-			project: Project{
-				timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Minute),
-				period:           cfg.EveryMinute,
-			},
-			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
-			output:  true,
+			timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Minute),
+			period:           cfg.EveryMinute,
+			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:           true,
 		},
 		{
-			project: Project{
-				timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Hour),
-				period:           cfg.EveryHour,
-			},
-			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
-			output:  true,
+			timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Hour),
+			period:           cfg.EveryHour,
+			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:           true,
 		},
 		{
-			project: Project{
-				timeOfLastChange: time.Unix(1611266369, 0).Add(-25 * time.Hour),
-				period:           cfg.EveryDay,
-			},
-			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
-			output:  true,
+			timeOfLastChange: time.Unix(1611266369, 0).Add(-25 * time.Hour),
+			period:           cfg.EveryDay,
+			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:           true,
 		},
 		{
-			project: Project{
-				timeOfLastChange: time.Unix(1611266369, 0),
-				period:           cfg.EverySecond,
-			},
-			timeNow: time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
-			output:  false,
+			timeOfLastChange: time.Unix(1611266369, 0),
+			period:           cfg.EverySecond,
+			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:           false,
 		},
 		{
 			// no change at weekend
-			project: Project{
-				timeOfLastChange: time.Unix(1611351955, 0),
-				period:           cfg.EverySecond,
-			},
-			timeNow: time.Unix(1611351955, 0), // Sat Jan 23 00:45:55 MSK 2021
-			output:  false,
+			timeOfLastChange: time.Unix(1611351955, 0),
+			period:           cfg.EverySecond,
+			timeNow:          time.Unix(1611351956, 0), // Sat Jan 23 00:45:55 MSK 2021
+			output:           false,
 		},
 	}
 
 	for _, testcase := range testcases {
-		output := testcase.project.shouldChangePerson(testcase.timeNow)
+		project, _ := NewProject("test_project", applicants1, testcase.period)
+		project.timeOfLastChange = testcase.timeOfLastChange
+		*project.cfg.SkipWeekends = true
+
+		output := project.shouldChangePerson(testcase.timeNow)
 		if output != testcase.output {
 			t.Errorf("testcase '%v': expected '%t', got '%t'", testcase, testcase.output, output)
+			continue
+		}
+	}
+}
+
+type timeTillNextChangeTestcase struct {
+	timeOfLastChange time.Time
+	period           cfg.PeriodType
+	timeNow          time.Time
+	output           time.Duration
+}
+
+func TestTimeTillNextChange(t *testing.T) {
+	testcases := []timeTillNextChangeTestcase{
+		{
+			timeOfLastChange: time.Unix(1612629060, 0), // Sat Feb  6 19:31:00 MSK 2021
+			period:           cfg.EveryDay,
+			timeNow:          time.Unix(1612629060, 0), // change just happened
+			output:           cfg.EveryDay.ToDuration(),
+		},
+		{
+			timeOfLastChange: time.Unix(1612629060, 0), // Sat Feb  6 19:31:00 MSK 2021
+			period:           cfg.EveryDay,
+			timeNow:          time.Unix(1612707360, 0), // last change was less than aperiod ago
+			output:           8100 * time.Second,
+		},
+		{
+			timeOfLastChange: time.Unix(1612629060, 0), // Sat Feb  6 19:31:00 MSK 2021
+			period:           cfg.EveryDay,
+			timeNow:          time.Unix(1612880160, 0), // last change was multiple periods ago
+			output:           8100 * time.Second,
+		},
+	}
+
+	for _, testcase := range testcases {
+		project, _ := NewProject("test_project", applicants1, testcase.period)
+		project.timeOfLastChange = testcase.timeOfLastChange
+
+		output := project.timeTillNextChange(testcase.timeNow)
+		if output != testcase.output {
+			t.Errorf("testcase '%v': expected '%v', got '%v'", testcase, testcase.output, output)
 			continue
 		}
 	}

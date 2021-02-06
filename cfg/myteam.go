@@ -44,7 +44,7 @@ func (cfg *MyTeamConfig) Validate() error {
 }
 
 func (cfg *MyTeamConfig) Print() {
-	log.Printf("myteam_token: %s", *cfg.MyTeamToken)
+	// log.Printf("myteam_token: %s", *cfg.MyTeamToken) // token is sensitive
 	log.Printf("myteam_api_url: %s", *cfg.MyTeamAPIURL)
 	log.Printf("myteam_chat_id: %s", *cfg.MyTeamChatID)
 	log.Printf("myteam_timeout: %s", *cfg.MyTeamTimeout)

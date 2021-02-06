@@ -12,10 +12,9 @@ import (
 
 func TestDutyScheduler(t *testing.T) {
 	config := cfg.NewConfig()
-	*config.ProjectName = "test_project"
-	*config.DutyApplicants = "test1,test2"
-	*config.MessagePattern = "%s"
-	*config.Period = string(cfg.EverySecond)
+	*config.Mailx.DutyApplicants = "test1,test2"
+	*config.Mailx.MessagePattern = "%s"
+	*config.Mailx.Period = string(cfg.EverySecond)
 
 	pipe := notifychannel.NewPipe()
 
@@ -23,7 +22,7 @@ func TestDutyScheduler(t *testing.T) {
 	sch.SetNotifyChannel(pipe)
 
 	go func() {
-		validateIncomingEvents(t, *config.DutyApplicants, pipe)
+		validateIncomingEvents(t, *config.Mailx.DutyApplicants, pipe)
 		sch.Shutdown()
 	}()
 
@@ -37,6 +36,8 @@ func validateIncomingEvents(t *testing.T, applicants string, pipe *notifychannel
 	firstPerson, secondPerson := applicantsParsed[0], applicantsParsed[1]
 
 	scanner := bufio.NewScanner(pipe)
+
+	// checking first person change
 
 	tm := time.Now()
 
@@ -60,6 +61,8 @@ func validateIncomingEvents(t *testing.T, applicants string, pipe *notifychannel
 		t.Errorf("first person must have been '%s', got '%s'", firstPerson, currLine)
 		return
 	}
+
+	// checking second person change
 
 	tm = time.Now()
 

@@ -59,14 +59,14 @@ func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 
 	log.Println("info: initialised notification channel")
 
-	newProject, err := NewProjectFromConfig(config)
+	newProject, err := NewProjectFromConfig(config.Mailx)
 	if err != nil {
 		return nil, fmt.Errorf("invalid project: %w", err)
 	}
 
 	sch.projects = append(sch.projects, newProject)
 
-	if *sch.cfg.StatePersistence {
+	if sch.cfg.StatePersistenceEnabled() {
 		sch.restoreStates()
 	}
 
@@ -87,7 +87,7 @@ func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 }
 
 func (sch *DutyScheduler) initNotifyChannel() (err error) {
-	switch cfg.NotifyChannelType(*sch.cfg.NotifyChannel) {
+	switch cfg.NotifyChannelType(*sch.cfg.Mailx.NotifyChannel) {
 	case cfg.EmptyChannelType:
 		sch.notifyChannel = notifychannel.EmptyNotifyChannel{}
 	case cfg.StdOutChannelType:
@@ -101,7 +101,7 @@ func (sch *DutyScheduler) initNotifyChannel() (err error) {
 
 func (sch *DutyScheduler) getProjectByName(name string) *Project {
 	for _, p := range sch.projects {
-		if p.name == name {
+		if p.Name() == name {
 			return p
 		}
 	}
@@ -141,13 +141,13 @@ func (sch *DutyScheduler) restoreStates() {
 		}
 
 		if err := project.RestoreState(state); err != nil {
-			log.Printf("error: could not restore states for project '%s': %v", project.name, err)
+			log.Printf("error: could not restore states for project '%s': %v", project.Name(), err)
 			continue
 		}
 
 		log.Printf("info: successfully restored state for project '%s', "+
 			"current person of duty is %s, last change was %s",
-			project.name, project.CurrentPerson(), project.LastChange(),
+			project.Name(), project.CurrentPerson(), project.LastChange(),
 		)
 	}
 }
@@ -169,7 +169,7 @@ func (sch *DutyScheduler) dumpStateToDiskAsync(p *Project) {
 	default:
 	}
 
-	log.Printf("error: [%s] could not dump state to disk: queue is full", p.name)
+	log.Printf("error: [%s] could not dump state to disk: queue is full", p.Name())
 }
 
 func (sch *DutyScheduler) eventsRoutine(projectID int) {
@@ -181,7 +181,7 @@ func (sch *DutyScheduler) eventsRoutine(projectID int) {
 		if project.ShouldChangePerson() {
 			project.SetTimeOfLastChange(time.Now())
 
-			if *sch.cfg.StatePersistence {
+			if project.StatePersistenceEnabled() {
 				sch.dumpStateToDiskAsync(project)
 			}
 
@@ -190,11 +190,13 @@ func (sch *DutyScheduler) eventsRoutine(projectID int) {
 				newPerson: sch.projects[projectID].NextPerson(),
 			}
 		} else {
-			log.Printf("info: [%s] timer triggered, but nothing will be changed", project.name)
+			log.Printf("info: [%s] timer triggered, but nothing will be changed", project.Name())
 		}
 
-		log.Printf("info: [%s] next change in %s", project.name, project.TimeTillNextChange())
-		timer := time.NewTimer(project.TimeTillNextChange())
+		timeToSleep := project.TimeTillNextChange()
+
+		log.Printf("info: [%s] next scheduling in %s", project.Name(), timeToSleep)
+		timer := time.NewTimer(timeToSleep)
 
 		select {
 		case <-timer.C:
@@ -211,12 +213,12 @@ func (sch *DutyScheduler) notificaionSenderRoutine() {
 	for e := range sch.eventsQ {
 		project := sch.projects[e.projectID]
 
-		log.Printf("info: [%s] new person on duty: %s", project.name, e.newPerson)
+		log.Printf("info: [%s] new person on duty: %s", project.Name(), e.newPerson)
 
-		notificationText := fmt.Sprintf(project.messagePattern, e.newPerson)
+		notificationText := fmt.Sprintf(*project.cfg.MessagePattern, e.newPerson)
 
 		if err := sch.notifyChannel.Send(notificationText); err != nil {
-			log.Printf("error: [%s] could not send update: %v", project.name, err)
+			log.Printf("error: [%s] could not send update: %v", project.Name(), err)
 		}
 	}
 }
@@ -227,17 +229,17 @@ func (sch *DutyScheduler) stateSaverRoutine() {
 	for p := range sch.statesQ {
 		if err := sch.stateSaverRoutineImpl(p); err != nil {
 			log.Printf("error: [%s] could not dump state to disk, scheduling will start "+
-				"from beginning in case of restart", p.name,
+				"from beginning in case of restart", p.Name(),
 			)
 			continue
 		}
 
-		log.Printf("info: [%s] state has been successfully saved to disk", p.name)
+		log.Printf("info: [%s] state has been successfully saved to disk", p.Name())
 	}
 }
 
 func (sch *DutyScheduler) stateSaverRoutineImpl(p *Project) error {
-	file, err := os.Create(p.name + ".state")
+	file, err := os.Create(p.Name() + ".state")
 	if err != nil {
 		return fmt.Errorf("could not create file: %w", err)
 	}

@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/gibsn/duty_bot/cfg"
-	"github.com/gibsn/duty_bot/dutyscheduler"
+	"github.com/gibsn/duty_bot/internal/cfg"
+	"github.com/gibsn/duty_bot/internal/dutyscheduler"
 )
 
 func main() {

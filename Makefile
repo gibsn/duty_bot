@@ -8,7 +8,7 @@ TARGET_BRANCH ?= main
 all: duty_bot
 
 duty_bot:
-	go build -mod vendor -o ./bin/$@ $(MODULE_NAME)
+	go build -mod vendor -o ./bin/$@ $(MODULE_NAME)/cmd/duty_bot
 
 bin/golangci-lint:
 	@echo "getting golangci-lint for $$(uname -m)/$$(uname -s)"

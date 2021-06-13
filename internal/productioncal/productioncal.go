@@ -8,7 +8,7 @@ import (
 
 	"github.com/anatoliyfedorenko/isdayoff"
 
-	"github.com/gibsn/duty_bot/cfg"
+	"github.com/gibsn/duty_bot/internal/cfg"
 )
 
 // ProductionCal can answer whether the given date is a day off according to

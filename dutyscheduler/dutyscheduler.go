@@ -126,7 +126,7 @@ func (sch *DutyScheduler) initProudctionCal() {
 	}
 
 	if err := productionCal.Init(); err != nil {
-		log.Printf("error: could not initialise production cal: %v", err)
+		log.Printf("error: could not initialise production calendar: %v", err)
 		log.Println("warning: day offs recognition will be unavailable until next refetch")
 	} else {
 		log.Println("info: initialised production calendar")
@@ -181,7 +181,7 @@ func (sch *DutyScheduler) restoreStates() {
 			continue
 		}
 
-		log.Printf("info: successfully restored state for project '%s', "+
+		log.Printf("info: [%s] successfully restored state, "+
 			"current person of duty is %s, last change was %s",
 			project.Name(), project.CurrentPerson(), project.LastChange(),
 		)
@@ -226,7 +226,8 @@ func (sch *DutyScheduler) eventsRoutine(projectID int) {
 				newPerson: sch.projects[projectID].NextPerson(),
 			}
 		} else {
-			log.Printf("info: [%s] timer triggered, but nothing will be changed", project.Name())
+			log.Printf("info: [%s] timer triggered, but change of person is not needed",
+				project.Name())
 		}
 
 		timeToSleep := project.TimeTillNextChange()

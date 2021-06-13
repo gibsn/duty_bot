@@ -143,9 +143,10 @@ func (p *Project) isDayOff(t time.Time) bool {
 
 	isDayOff, err := p.dayOffsDB.IsDayOff(t)
 	if err != nil {
-		log.Printf("error: could not check if %s is a day off: %v", t, err)
+		log.Printf("error: [%s] could not check if %s is a day off: %v", p.Name(), t, err)
 		log.Printf(
-			"warning: not considering holidays due to an error, will only consider weekends",
+			"warning: [%s] not considering holidays due to an error, will only consider weekends",
+			p.Name(),
 		)
 
 		return isWeekEndDay(t)

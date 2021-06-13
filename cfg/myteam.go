@@ -14,6 +14,15 @@ const (
 	defaultMyTeamTimeout = 5 * time.Second
 )
 
+const (
+	cfgMyTeamPrefix = "myteam"
+
+	cfgMyTeamTokenTitle   = cfgMyTeamPrefix + ".token"
+	cfgMyTeamAPIURLTitle  = cfgMyTeamPrefix + ".api_url"
+	cfgMyTeamChatIDTitle  = cfgMyTeamPrefix + ".chat_id"
+	cfgMyTeamTimeoutTitle = cfgMyTeamPrefix + ".timeout"
+)
+
 type MyTeamConfig struct {
 	MyTeamToken   *string
 	MyTeamAPIURL  *string
@@ -23,10 +32,10 @@ type MyTeamConfig struct {
 
 func NewMyTeamConfig() *MyTeamConfig {
 	config := &MyTeamConfig{
-		MyTeamToken:   flag.String("myteam_token", defaultMyTeamToken, "myteam bot token"),
-		MyTeamAPIURL:  flag.String("myteam_api_url", defaultMyTeamAPIURL, "myteam bot API url"),
-		MyTeamChatID:  flag.String("myteam_chat_id", defaultMyTeamChatID, "myteam chat id"),
-		MyTeamTimeout: flag.Duration("myteam_timeout", defaultMyTeamTimeout, "myteam timeout"),
+		MyTeamToken:   flag.String(cfgMyTeamTokenTitle, defaultMyTeamToken, "myteam bot token"),
+		MyTeamAPIURL:  flag.String(cfgMyTeamAPIURLTitle, defaultMyTeamAPIURL, "myteam bot API url"),
+		MyTeamChatID:  flag.String(cfgMyTeamChatIDTitle, defaultMyTeamChatID, "myteam chat id"),
+		MyTeamTimeout: flag.Duration(cfgMyTeamTimeoutTitle, defaultMyTeamTimeout, "myteam timeout"),
 	}
 
 	return config
@@ -34,10 +43,10 @@ func NewMyTeamConfig() *MyTeamConfig {
 
 func (cfg *MyTeamConfig) Validate() error {
 	if len(*cfg.MyTeamToken) == 0 {
-		return fmt.Errorf("invalid myteam_token: %w", ErrMustNotBeEmpty)
+		return fmt.Errorf("invalid %s: %w", cfgMyTeamTokenTitle, ErrMustNotBeEmpty)
 	}
 	if len(*cfg.MyTeamChatID) == 0 {
-		return fmt.Errorf("invalid myteam_chat_id: %w", ErrMustNotBeEmpty)
+		return fmt.Errorf("invalid %s: %w", cfgMyTeamChatIDTitle, ErrMustNotBeEmpty)
 	}
 
 	return nil
@@ -45,7 +54,7 @@ func (cfg *MyTeamConfig) Validate() error {
 
 func (cfg *MyTeamConfig) Print() {
 	// log.Printf("myteam_token: %s", *cfg.MyTeamToken) // token is sensitive
-	log.Printf("myteam_api_url: %s", *cfg.MyTeamAPIURL)
-	log.Printf("myteam_chat_id: %s", *cfg.MyTeamChatID)
-	log.Printf("myteam_timeout: %s", *cfg.MyTeamTimeout)
+	log.Print(cfgMyTeamAPIURLTitle+":", *cfg.MyTeamAPIURL)
+	log.Print(cfgMyTeamChatIDTitle+":", *cfg.MyTeamChatID)
+	log.Print(cfgMyTeamTimeoutTitle+":", *cfg.MyTeamTimeout)
 }

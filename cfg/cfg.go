@@ -9,6 +9,8 @@ import (
 type Config struct {
 	Mailx  *ProjectConfig
 	MyTeam *MyTeamConfig
+
+	ProductionCal *ProductionCalConfig
 }
 
 func NewConfig() *Config {
@@ -16,6 +18,7 @@ func NewConfig() *Config {
 
 	config.Mailx = NewProjectConfig("mailx")
 	config.MyTeam = NewMyTeamConfig()
+	config.ProductionCal = NewProductionCalConfig()
 
 	flag.Parse()
 
@@ -31,6 +34,9 @@ func (cfg Config) Validate() error {
 			return fmt.Errorf("invalid myteam config: %w", err)
 		}
 	}
+	if err := cfg.ProductionCal.Validate(); err != nil {
+		return fmt.Errorf("invalid production calendar config: %w", err)
+	}
 
 	return nil
 }
@@ -40,6 +46,7 @@ func (cfg Config) Print() {
 
 	cfg.Mailx.Print()
 	cfg.MyTeam.Print()
+	cfg.ProductionCal.Print()
 }
 
 // StatePersistenceEnabled reports whether any project has state persistence enabled

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gibsn/duty_bot/cfg"
+	"github.com/gibsn/duty_bot/internal/cfg"
 )
 
 const (

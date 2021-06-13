@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gibsn/duty_bot/cfg"
+	"github.com/gibsn/duty_bot/internal/cfg"
 
 	"github.com/mail-ru-im/bot-golang" //nolint: goimports
 )

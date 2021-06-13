@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gibsn/duty_bot/cfg"
-	"github.com/gibsn/duty_bot/notifychannel"
-	"github.com/gibsn/duty_bot/productioncal"
+	"github.com/gibsn/duty_bot/internal/cfg"
+	"github.com/gibsn/duty_bot/internal/notifychannel"
+	"github.com/gibsn/duty_bot/internal/productioncal"
 )
 
 // DutyScheduler schedules persons of duty in given periods of time.

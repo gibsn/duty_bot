@@ -67,9 +67,7 @@ func NewProjectFromConfig(config *cfg.ProjectConfig) (*Project, error) {
 		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)
 	}
 
-	for _, applicant := range strings.Split(*config.DutyApplicants, ",") {
-		p.dutyApplicants = append(p.dutyApplicants, applicant)
-	}
+	p.dutyApplicants = append(p.dutyApplicants, strings.Split(*config.DutyApplicants, ",")...)
 
 	if len(p.dutyApplicants) == 0 {
 		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)

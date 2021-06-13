@@ -9,7 +9,6 @@ import (
 const (
 	defaultDutyApplicants   = ""
 	defaultMessagePattern   = "Дежурный: @[%s]"
-	defaultProjectName      = ""
 	defaultPeriod           = EveryDay
 	defaultNotifyChannel    = EmptyChannelType
 	defaultStatePersistence = false

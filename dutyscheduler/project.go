@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -18,6 +19,10 @@ var (
 	ErrNamesDoNotMatch = errors.New("name of the given does match that of the project's")
 )
 
+type dayOffsDB interface {
+	IsDayOff(time.Time) (bool, error)
+}
+
 // Project represents an actual project with employes that take duty cyclically
 // after given period of time
 type Project struct {
@@ -28,6 +33,7 @@ type Project struct {
 
 	timeOfLastChange time.Time // previous time the person was changed
 	period           cfg.PeriodType
+	dayOffsDB        dayOffsDB // if not nil, use for info about dayoffs
 
 	mu *sync.RWMutex
 }
@@ -35,14 +41,14 @@ type Project struct {
 // NewProject created a new project with the given parameters. Mostly used for testing purposes
 func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error) {
 	periodStr := string(period)
-	skipWeekends := false
+	skipDayOffs := false
 	statePersistence := false
 
 	fakeCfg := &cfg.ProjectConfig{
 		ProjectName:      name,
 		DutyApplicants:   &applicants,
 		Period:           &periodStr,
-		SkipWeekends:     &skipWeekends,
+		SkipDayOffs:      &skipDayOffs,
 		StatePersistence: &statePersistence,
 	}
 
@@ -122,6 +128,33 @@ func (p *Project) ShouldChangePerson() bool {
 	return p.shouldChangePerson(time.Now())
 }
 
+func (p *Project) SetDayOffsDB(db dayOffsDB) {
+	p.dayOffsDB = db
+}
+
+func (p *Project) shouldConsiderHolidays() bool {
+	return p.dayOffsDB != nil
+}
+
+func (p *Project) isDayOff(t time.Time) bool {
+	if !p.shouldConsiderHolidays() {
+		return isWeekEndDay(t)
+	}
+
+	isDayOff, err := p.dayOffsDB.IsDayOff(t)
+	if err != nil {
+		log.Printf("error: [%s] could not check if %s is a day off: %v", p.Name(), t, err)
+		log.Printf(
+			"warning: [%s] not considering holidays due to an error, will only consider weekends",
+			p.Name(),
+		)
+
+		return isWeekEndDay(t)
+	}
+
+	return isDayOff
+}
+
 // shouldChangePerson implements the main logic for ShouldChangePerson
 func (p *Project) shouldChangePerson(timeNow time.Time) bool {
 	// if restarted and it is not time to change person yet
@@ -129,11 +162,9 @@ func (p *Project) shouldChangePerson(timeNow time.Time) bool {
 		return false
 	}
 
-	// no duties at weekend (yet)
-	if *p.cfg.SkipWeekends {
-		if timeNow.Weekday() == time.Sunday || timeNow.Weekday() == time.Saturday {
-			return false
-		}
+	// no duties at day offs (yet)
+	if *p.cfg.SkipDayOffs && p.isDayOff(timeNow) {
+		return false
 	}
 
 	return true
@@ -172,6 +203,14 @@ func (p *Project) DumpState(w io.StringWriter) error {
 	}
 
 	return nil
+}
+
+func isWeekEndDay(t time.Time) bool {
+	if t.Weekday() == time.Sunday || t.Weekday() == time.Saturday {
+		return true
+	}
+
+	return false
 }
 
 func writeFull(w io.StringWriter, s string) error {

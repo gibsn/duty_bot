@@ -12,6 +12,7 @@ import (
 
 func TestDutyScheduler(t *testing.T) {
 	config := cfg.NewConfig()
+
 	*config.Mailx.DutyApplicants = "test1,test2"
 	*config.Mailx.MessagePattern = "%s"
 	*config.Mailx.Period = string(cfg.EverySecond)
@@ -30,6 +31,32 @@ func TestDutyScheduler(t *testing.T) {
 
 	sch.Routine()
 }
+
+// currently not working because NewConfig reset flags which produces error
+// func TestDutyScheduleWithFailedProductionCal(t *testing.T) {
+// 	config := cfg.NewConfig()
+//
+// 	*config.Mailx.DutyApplicants = "test1,test2"
+// 	*config.Mailx.MessagePattern = "%s"
+// 	*config.Mailx.Period = string(cfg.EverySecond)
+//
+// 	*config.ProductionCal.Enabled = true
+// 	*config.ProductionCal.APITimeout = 1 * time.Millisecond // to imitate a fail
+//
+// 	pipe := notifychannel.NewPipe()
+//
+// 	sch, _ := NewDutyScheduler(config)
+// 	sch.SetNotifyChannel(pipe)
+//
+// 	go func() {
+// 		validateIncomingEvents(t, *config.Mailx.DutyApplicants, pipe)
+// 		sch.Shutdown()
+// 	}()
+//
+// 	go sch.watchdog(t)
+//
+// 	sch.Routine()
+// }
 
 func validateIncomingEvents(t *testing.T, applicants string, pipe *notifychannel.Pipe) {
 	applicantsParsed := strings.Split(applicants, ",")

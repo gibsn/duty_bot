@@ -13,7 +13,7 @@ const (
 	defaultPeriod           = EveryDay
 	defaultNotifyChannel    = EmptyChannelType
 	defaultStatePersistence = false
-	defaultSkipWeekends     = false
+	defaultSkipDayOffs      = false
 )
 
 type ProjectConfig struct {
@@ -22,8 +22,8 @@ type ProjectConfig struct {
 	DutyApplicants *string
 	MessagePattern *string
 
-	Period       *string
-	SkipWeekends *bool
+	Period      *string
+	SkipDayOffs *bool
 
 	NotifyChannel *string
 
@@ -45,9 +45,9 @@ func NewProjectConfig(projectName string) *ProjectConfig {
 			"p", string(defaultPeriod),
 			"how often a person changes",
 		),
-		SkipWeekends: flag.Bool(
-			"w", defaultSkipWeekends,
-			"skip duty change at weekends",
+		SkipDayOffs: flag.Bool(
+			"w", defaultSkipDayOffs,
+			"skip duty change at day offs",
 		),
 		NotifyChannel: flag.String(
 			"c", string(defaultNotifyChannel),
@@ -78,7 +78,7 @@ func (cfg *ProjectConfig) Print() {
 	log.Printf("%s.duty_applicants: %s", cfg.ProjectName, *cfg.DutyApplicants)
 	log.Printf("%s.pattern: %s", cfg.ProjectName, *cfg.MessagePattern)
 	log.Printf("%s.period: %s", cfg.ProjectName, *cfg.Period)
-	log.Printf("%s.skip_weekends: %t", cfg.ProjectName, *cfg.SkipWeekends)
+	log.Printf("%s.skip_day_offs: %t", cfg.ProjectName, *cfg.SkipDayOffs)
 	log.Printf("%s.notify_channel: %s", cfg.ProjectName, *cfg.NotifyChannel)
 	log.Printf("%s.state_persistence: %t", cfg.ProjectName, *cfg.StatePersistence)
 }

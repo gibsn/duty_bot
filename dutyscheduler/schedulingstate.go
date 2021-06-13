@@ -13,7 +13,7 @@ import (
 const (
 	fieldNameIdx           = 0
 	fieldCurrentPersonIdx  = 1
-	fieldTsOfLastChangeIdx = 2
+	fieldTSOfLastChangeIdx = 2
 )
 
 const (
@@ -54,7 +54,7 @@ func NewSchedulingState(r io.Reader) (*SchedulingState, error) {
 
 			newState.currentPerson = uint64(currPerson)
 
-		case fieldTsOfLastChangeIdx:
+		case fieldTSOfLastChangeIdx:
 			ts, err := strconv.Atoi(scanner.Text())
 			if err != nil {
 				return nil, fmt.Errorf("invalid ts of last change '%s': %w", currLine, err)

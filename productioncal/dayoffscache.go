@@ -24,19 +24,19 @@ func newDateFromTime(t time.Time) date {
 	}
 }
 
-type dayOffsCache struct {
+type DayOffsCache struct {
 	cache map[date]bool
 	mu    sync.RWMutex
 }
 
-func NewDayOffsCache() *dayOffsCache {
-	return &dayOffsCache{
+func NewDayOffsCache() *DayOffsCache {
+	return &DayOffsCache{
 		cache: make(map[date]bool),
 	}
 }
 
 // Set reset the internal cache to the given map
-func (c *dayOffsCache) Set(newCache map[date]bool) {
+func (c *DayOffsCache) Set(newCache map[date]bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -44,7 +44,7 @@ func (c *dayOffsCache) Set(newCache map[date]bool) {
 }
 
 // IsDayOff reports whether the given date is a day off
-func (c *dayOffsCache) IsDayOff(date date) (bool, error) {
+func (c *DayOffsCache) IsDayOff(date date) (bool, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -56,7 +56,7 @@ func (c *dayOffsCache) IsDayOff(date date) (bool, error) {
 }
 
 // String prints contents of the internal map in a sorted fashion
-func (c *dayOffsCache) String() string {
+func (c *DayOffsCache) String() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

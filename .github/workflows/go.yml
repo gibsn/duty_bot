@@ -4,12 +4,12 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ '*' ]
 
 jobs:
 
   build:
-    name: Build
+    name: Build and test and lint
     runs-on: ubuntu-latest
     steps:
 
@@ -26,3 +26,11 @@ jobs:
 
     - name: Test
       run: make test
+
+    - name: Lint
+      uses: golangci/golangci-lint-action@v2
+      with:
+        version: v1.29
+        args: "-c ./build/ci/golangci.yml"
+        only-new-issues: true
+        skip-go-installation: true

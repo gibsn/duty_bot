@@ -68,7 +68,7 @@ func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 
 	go sch.signalHandler()
 
-	sch.ioWG.Add(2)
+	sch.ioWG.Add(2) // nolint: gomnd
 	go sch.stateSaverRoutine()
 	go sch.notificaionSenderRoutine()
 
@@ -189,7 +189,7 @@ func (sch *DutyScheduler) restoreStates() {
 }
 
 func (sch *DutyScheduler) signalHandler() {
-	signalQ := make(chan os.Signal)
+	signalQ := make(chan os.Signal, 1)
 	signal.Notify(signalQ, syscall.SIGTERM, syscall.SIGINT)
 
 	for s := range signalQ {
@@ -275,19 +275,19 @@ func (sch *DutyScheduler) stateSaverRoutine() {
 	}
 }
 
-func (sch *DutyScheduler) stateSaverRoutineImpl(p *Project) error {
+func (sch *DutyScheduler) stateSaverRoutineImpl(p *Project) (err error) {
 	file, err := os.Create(p.Name() + ".state")
 	if err != nil {
 		return fmt.Errorf("could not create file: %w", err)
 	}
 
 	defer func() {
-		if err := file.Close(); err != nil {
+		if err = file.Close(); err != nil {
 			err = fmt.Errorf("could not close file: %w", err)
 		}
 	}()
 
-	if err := p.DumpState(file); err != nil {
+	if err = p.DumpState(file); err != nil {
 		return err
 	}
 

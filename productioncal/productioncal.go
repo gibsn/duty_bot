@@ -18,7 +18,7 @@ import (
 type ProductionCal struct {
 	cfg *cfg.ProductionCalConfig
 
-	daysCache *dayOffsCache
+	daysCache *DayOffsCache
 
 	httpClient  http.Client
 	isDayOffAPI *isdayoff.Client

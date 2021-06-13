@@ -20,7 +20,7 @@ var (
 )
 
 type dayOffsDB interface {
-	isDayOff(time.Time) (bool, error)
+	IsDayOff(time.Time) (bool, error)
 }
 
 // Project represents an actual project with employes that take duty cyclically
@@ -141,9 +141,9 @@ func (p *Project) isDayOff(t time.Time) bool {
 		return isWeekEndDay(t)
 	}
 
-	isDayOff, err := p.dayOffsDB.isDayOff(t)
+	isDayOff, err := p.dayOffsDB.IsDayOff(t)
 	if err != nil {
-		log.Printf("error: could not check if %v is a day off: %v", t, err)
+		log.Printf("error: could not check if %s is a day off: %v", t, err)
 		log.Printf(
 			"warning: not considering holidays due to an error, will only consider weekends",
 		)

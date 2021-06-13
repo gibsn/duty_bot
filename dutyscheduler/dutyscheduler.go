@@ -12,6 +12,7 @@ import (
 
 	"github.com/gibsn/duty_bot/cfg"
 	"github.com/gibsn/duty_bot/notifychannel"
+	"github.com/gibsn/duty_bot/productioncal"
 )
 
 // DutyScheduler schedules persons of duty in given periods of time.
@@ -57,17 +58,12 @@ func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 		return nil, fmt.Errorf("could not init notification channel: %w", err)
 	}
 
-	log.Println("info: initialised notification channel")
-
-	newProject, err := NewProjectFromConfig(config.Mailx)
-	if err != nil {
-		return nil, fmt.Errorf("invalid project: %w", err)
+	if err := sch.initProjects(); err != nil {
+		return nil, err
 	}
 
-	sch.projects = append(sch.projects, newProject)
-
-	if sch.cfg.StatePersistenceEnabled() {
-		sch.restoreStates()
+	if *config.ProductionCal.Enabled {
+		sch.initProudctionCal()
 	}
 
 	go sch.signalHandler()
@@ -96,7 +92,47 @@ func (sch *DutyScheduler) initNotifyChannel() (err error) {
 		sch.notifyChannel, err = notifychannel.NewMyTeamNotifyChannel(sch.cfg.MyTeam)
 	}
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	log.Println("info: initialised notification channel")
+
+	return nil
+}
+
+func (sch *DutyScheduler) initProjects() error {
+	newProject, err := NewProjectFromConfig(sch.cfg.Mailx)
+	if err != nil {
+		return fmt.Errorf("invalid project: %w", err)
+	}
+
+	sch.projects = append(sch.projects, newProject)
+
+	if sch.cfg.StatePersistenceEnabled() {
+		sch.restoreStates()
+	}
+
+	log.Println("info: initialised projects")
+
+	return nil
+}
+
+func (sch *DutyScheduler) initProudctionCal() {
+	productionCal := productioncal.NewProductionCal(sch.cfg.ProductionCal)
+
+	for _, p := range sch.projects {
+		p.SetDayOffsDB(productionCal)
+	}
+
+	if err := productionCal.Init(); err != nil {
+		log.Printf("error: could not initialise production cal: %v", err)
+		log.Println("warning: day offs recognition will be unavailable until next refetch")
+	} else {
+		log.Println("info: initialised production calendar")
+	}
+
+	go productionCal.Routine()
 }
 
 func (sch *DutyScheduler) getProjectByName(name string) *Project {

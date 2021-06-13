@@ -1,3 +1,5 @@
+github.com/anatoliyfedorenko/isdayoff v1.0.2 h1:eDPM77cx96oziR97Sj0o+neuTUZRyD8HViB7QAqghv4=
+github.com/anatoliyfedorenko/isdayoff v1.0.2/go.mod h1:ZNmFWl1WXAg7qGqtVgUzy8ZhEQ1ESjkpX/ElWmoAILM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/hako/durafmt v0.0.0-20190612201238-650ed9f29a84 h1:RvcDqcKLua4b/jtXez7ZVe9s6Iq5N6ujVevqY4FBQmM=

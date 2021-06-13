@@ -2,6 +2,7 @@ package dutyscheduler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -158,6 +159,19 @@ func (t shouldChangePersonTestcase) String() string {
 	return fmt.Sprintf("%s %s %s %t", t.timeOfLastChange, t.period, t.timeNow, t.output)
 }
 
+// dummyDayOffDB knows nothing except that January 1st is a holiday
+type dummyDayOffDB struct {
+}
+
+func (db dummyDayOffDB) IsDayOff(t time.Time) (bool, error) {
+	_, m, d := t.Date()
+	if m == time.January && d == 1 {
+		return true, nil
+	}
+
+	return false, errors.New("date is unknown")
+}
+
 func TestProjectShouldChangePerson(t *testing.T) {
 	testcases := []shouldChangePersonTestcase{
 		{
@@ -202,6 +216,43 @@ func TestProjectShouldChangePerson(t *testing.T) {
 		project, _ := NewProject("test_project", applicants1, testcase.period)
 		project.timeOfLastChange = testcase.timeOfLastChange
 		*project.cfg.SkipDayOffs = true
+
+		output := project.shouldChangePerson(testcase.timeNow)
+		if output != testcase.output {
+			t.Errorf("testcase '%s': expected '%t', got '%t'", testcase, testcase.output, output)
+			continue
+		}
+	}
+}
+
+func TestProjectShouldChangePersonWithDayOff(t *testing.T) {
+	testcases := []shouldChangePersonTestcase{
+		{ // no change on holiday
+			timeOfLastChange: time.Unix(1609423211, 0),
+			period:           cfg.EverySecond,
+			timeNow:          time.Unix(1609513211, 0), // Fri Jan 01 2021 18:00:11 GMT+0300 (MSK)
+			output:           false,
+		},
+		{ // fallback to isWeekEnd
+			timeOfLastChange: time.Unix(1611351955, 0),
+			period:           cfg.EverySecond,
+			timeNow:          time.Unix(1611362756, 0), // Sat Jan 23 03:45:55 MSK 2021
+			output:           false,
+		},
+		{ // fallback to isWeekEnd
+			timeOfLastChange: time.Unix(1611266369, 0).Add(-25 * time.Hour),
+			period:           cfg.EveryDay,
+			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
+			output:           true,
+		},
+	}
+
+	for _, testcase := range testcases {
+		project, _ := NewProject("test_project", applicants1, testcase.period)
+		project.timeOfLastChange = testcase.timeOfLastChange
+		*project.cfg.SkipDayOffs = true
+
+		project.SetDayOffsDB(dummyDayOffDB{})
 
 		output := project.shouldChangePerson(testcase.timeNow)
 		if output != testcase.output {

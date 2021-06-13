@@ -7,8 +7,7 @@ import (
 
 	"github.com/gibsn/duty_bot/cfg"
 
-	// "github.com/mail-ru-im/bot-golang" //nolint: goimports
-	"github.com/mail-ru-im/bot-golang"
+	"github.com/mail-ru-im/bot-golang" //nolint: goimports
 )
 
 type MyTeamNotifyChannel struct {

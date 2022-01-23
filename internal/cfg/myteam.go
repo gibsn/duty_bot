@@ -1,7 +1,6 @@
 package cfg
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -24,37 +23,51 @@ const (
 )
 
 type MyTeamConfig struct {
-	MyTeamToken   *string
-	MyTeamAPIURL  *string
-	MyTeamChatID  *string
-	MyTeamTimeout *time.Duration
+	prefix string
+
+	Token   string
+	APIURL  string `mapstructure:"api_url"`
+	ChatID  string `mapstructure:"chat_id"`
+	Timeout time.Duration
 }
 
-func NewMyTeamConfig() *MyTeamConfig {
+func NewMyTeamConfig(prefix string) *MyTeamConfig {
 	config := &MyTeamConfig{
-		MyTeamToken:   flag.String(cfgMyTeamTokenTitle, defaultMyTeamToken, "myteam bot token"),
-		MyTeamAPIURL:  flag.String(cfgMyTeamAPIURLTitle, defaultMyTeamAPIURL, "myteam bot API url"),
-		MyTeamChatID:  flag.String(cfgMyTeamChatIDTitle, defaultMyTeamChatID, "myteam chat id"),
-		MyTeamTimeout: flag.Duration(cfgMyTeamTimeoutTitle, defaultMyTeamTimeout, "myteam timeout"),
+		prefix: prefix,
 	}
 
 	return config
 }
 
 func (cfg *MyTeamConfig) Validate() error {
-	if len(*cfg.MyTeamToken) == 0 {
-		return fmt.Errorf("invalid %s: %w", cfgMyTeamTokenTitle, ErrMustNotBeEmpty)
+	paramNameFactory := cfg.paramWithPrefix()
+
+	if len(cfg.Token) == 0 {
+		return fmt.Errorf("%s: %w", paramNameFactory(cfgMyTeamTokenTitle), ErrMustNotBeEmpty)
 	}
-	if len(*cfg.MyTeamChatID) == 0 {
-		return fmt.Errorf("invalid %s: %w", cfgMyTeamChatIDTitle, ErrMustNotBeEmpty)
+	if len(cfg.ChatID) == 0 {
+		return fmt.Errorf("%s: %w", paramNameFactory(cfgMyTeamChatIDTitle), ErrMustNotBeEmpty)
+	}
+
+	if len(cfg.APIURL) == 0 {
+		cfg.APIURL = defaultMyTeamAPIURL
+	}
+	if cfg.Timeout == 0 {
+		cfg.Timeout = defaultMyTeamTimeout
 	}
 
 	return nil
 }
 
-func (cfg *MyTeamConfig) Print() {
+func (cfg MyTeamConfig) Print() {
+	paramNameFactory := cfg.paramWithPrefix()
+
 	// log.Printf("myteam_token: %s", *cfg.MyTeamToken) // token is sensitive
-	log.Print(cfgMyTeamAPIURLTitle+":", *cfg.MyTeamAPIURL)
-	log.Print(cfgMyTeamChatIDTitle+":", *cfg.MyTeamChatID)
-	log.Print(cfgMyTeamTimeoutTitle+":", *cfg.MyTeamTimeout)
+	log.Print(fmt.Sprintf("%s: %s", paramNameFactory(cfgMyTeamAPIURLTitle), cfg.APIURL))
+	log.Print(fmt.Sprintf("%s: %s", paramNameFactory(cfgMyTeamChatIDTitle), cfg.ChatID))
+	log.Print(fmt.Sprintf("%s: %s", paramNameFactory(cfgMyTeamTimeoutTitle), cfg.Timeout))
+}
+
+func (cfg MyTeamConfig) paramWithPrefix() func(param string) string {
+	return paramWithPrefix(cfg.prefix)
 }

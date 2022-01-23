@@ -1,0 +1,17 @@
+mailx:
+  applicants: "user1@mail.ru,user2@mail.ru"  # duty applicants joined by comma
+  message: "Duty: @[%s]"                     # pattern of message that will be sent to communication channel
+  period: "every day"                        # how often a person changes
+  persist: true                              # save states to disk to mitigate restarts
+  channel: stdout                            # channel for scheduler notifications (stdout|myteam)
+  skip_dayoffs: true                         # skip duty change at day offs
+  myteam:
+    token: "123"                             # myteam bot token
+    chat_id: '123@chat.agent'                # myteam chat id where to send messages
+    api_url: 'https://myteam.mail.ru/bot/v1' # myteam API url
+    timeout: 30s                             # myteam API timeout
+production_cal:
+  enabled: true                              # use production calendar to find out about holidays
+  timeout: 30s                               # API timeout
+  cache_interval: 7                          # number of days to cache info about
+  recache_period: 24h                        # how often to refetch production calendar

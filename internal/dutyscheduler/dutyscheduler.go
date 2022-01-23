@@ -62,7 +62,7 @@ func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 		return nil, err
 	}
 
-	if *config.ProductionCal.Enabled {
+	if config.ProductionCal.Enabled {
 		sch.initProudctionCal()
 	}
 
@@ -83,13 +83,13 @@ func NewDutyScheduler(config *cfg.Config) (*DutyScheduler, error) {
 }
 
 func (sch *DutyScheduler) initNotifyChannel() (err error) {
-	switch cfg.NotifyChannelType(*sch.cfg.Mailx.NotifyChannel) {
+	switch cfg.NotifyChannelType(sch.cfg.Mailx.Channel) {
 	case cfg.EmptyChannelType:
 		sch.notifyChannel = notifychannel.EmptyNotifyChannel{}
 	case cfg.StdOutChannelType:
 		sch.notifyChannel = notifychannel.StdOutNotifyChannel{}
 	case cfg.MyTeamChannelType:
-		sch.notifyChannel, err = notifychannel.NewMyTeamNotifyChannel(sch.cfg.MyTeam)
+		sch.notifyChannel, err = notifychannel.NewMyTeamNotifyChannel(sch.cfg.Mailx.MyTeam)
 	}
 
 	if err != nil {
@@ -252,7 +252,7 @@ func (sch *DutyScheduler) notificaionSenderRoutine() {
 
 		log.Printf("info: [%s] new person on duty: %s", project.Name(), e.newPerson)
 
-		notificationText := fmt.Sprintf(*project.cfg.MessagePattern, e.newPerson)
+		notificationText := fmt.Sprintf(project.cfg.MessagePattern, e.newPerson)
 
 		if err := sch.notifyChannel.Send(notificationText); err != nil {
 			log.Printf("error: [%s] could not send update: %v", project.Name(), err)

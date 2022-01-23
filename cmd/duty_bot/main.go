@@ -10,7 +10,10 @@ import (
 func main() {
 	log.Println("info: starting duty_bot")
 
-	config := cfg.NewConfig()
+	config, err := cfg.NewConfig()
+	if err != nil {
+		log.Fatalf("fatal: %v", err)
+	}
 
 	if err := config.Validate(); err != nil {
 		log.Fatalf("error: config is invalid: %v", err)

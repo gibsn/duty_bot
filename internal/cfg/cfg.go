@@ -43,7 +43,7 @@ func NewConfig() (*Config, error) {
 func (cfg *Config) parseConfigFile() error {
 	configAsBytes, err := ioutil.ReadFile(*cfg.pathToConfig)
 	if err != nil {
-		return fmt.Errorf("could not read config at '%s': %w", cfg.pathToConfig, err)
+		return fmt.Errorf("could not read config at '%s': %w", *cfg.pathToConfig, err)
 	}
 
 	var configAsMap map[string]interface{}

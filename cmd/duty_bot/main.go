@@ -15,7 +15,7 @@ func main() {
 		log.Fatalf("fatal: %v", err)
 	}
 
-	if err := config.Validate(); err != nil {
+	if err = config.Validate(); err != nil {
 		log.Fatalf("error: config is invalid: %v", err)
 	}
 

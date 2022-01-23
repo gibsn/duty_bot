@@ -16,7 +16,6 @@ type ProductionCalConfig struct {
 }
 
 const (
-	defaultEnabled       = false
 	defaultCacheInterval = 7
 	defaultRecachePeriod = 24 * time.Hour
 	// defaultAPIHost       = "https://isdayoff.ru"

@@ -7,9 +7,7 @@ import (
 )
 
 const (
-	defaultMyTeamToken   = ""
 	defaultMyTeamAPIURL  = "https://myteam.mail.ru/bot/v1/"
-	defaultMyTeamChatID  = ""
 	defaultMyTeamTimeout = 5 * time.Second
 )
 

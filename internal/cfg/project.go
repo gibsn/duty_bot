@@ -15,12 +15,8 @@ const (
 )
 
 const (
-	defaultDutyApplicants   = ""
-	defaultMessagePattern   = "Дежурный: @[%s]"
-	defaultPeriod           = EveryDay
-	defaultNotifyChannel    = EmptyChannelType
-	defaultStatePersistence = false
-	defaultSkipDayOffs      = false
+	defaultPeriod        = EveryDay
+	defaultNotifyChannel = EmptyChannelType
 )
 
 type ProjectConfig struct {
@@ -71,7 +67,7 @@ func (cfg *ProjectConfig) Validate() error {
 			return fmt.Errorf("invalid myteam config: %w", err)
 		}
 	case "":
-		cfg.Channel = string(EmptyChannelType)
+		cfg.Channel = string(defaultNotifyChannel)
 	}
 
 	if err := NotifyChannelType(cfg.Channel).Validate(); err != nil {

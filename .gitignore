@@ -15,3 +15,8 @@
 # vendor/
 bin
 *.state
+
+# Ignore all configs except example
+*.yml
+*.yaml
+!duty_bot_example.yaml

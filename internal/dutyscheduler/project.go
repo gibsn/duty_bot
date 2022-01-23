@@ -44,13 +44,11 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 	skipDayOffs := false
 	statePersistence := false
 
-	fakeCfg := &cfg.ProjectConfig{
-		ProjectName:      name,
-		DutyApplicants:   &applicants,
-		Period:           &periodStr,
-		SkipDayOffs:      &skipDayOffs,
-		StatePersistence: &statePersistence,
-	}
+	fakeCfg := cfg.NewProjectConfig(name)
+	fakeCfg.Applicants = applicants
+	fakeCfg.Period = periodStr
+	fakeCfg.SkipDayOffs = skipDayOffs
+	fakeCfg.Persist = statePersistence
 
 	return NewProjectFromConfig(fakeCfg)
 }
@@ -59,15 +57,15 @@ func NewProjectFromConfig(config *cfg.ProjectConfig) (*Project, error) {
 	p := &Project{
 		cfg:           config,
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
-		period:        cfg.PeriodType(*config.Period),
+		period:        cfg.PeriodType(config.Period),
 		mu:            &sync.RWMutex{},
 	}
 
-	if len(*config.DutyApplicants) == 0 {
+	if len(config.Applicants) == 0 {
 		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)
 	}
 
-	p.dutyApplicants = append(p.dutyApplicants, strings.Split(*config.DutyApplicants, ",")...)
+	p.dutyApplicants = append(p.dutyApplicants, strings.Split(config.Applicants, ",")...)
 
 	if len(p.dutyApplicants) == 0 {
 		return nil, fmt.Errorf("invalid duty_applicants: %w", cfg.ErrMustNotBeEmpty)
@@ -161,7 +159,7 @@ func (p *Project) shouldChangePerson(timeNow time.Time) bool {
 	}
 
 	// no duties at day offs (yet)
-	if *p.cfg.SkipDayOffs && p.isDayOff(timeNow) {
+	if p.cfg.SkipDayOffs && p.isDayOff(timeNow) {
 		return false
 	}
 
@@ -227,9 +225,9 @@ func writeFull(w io.StringWriter, s string) error {
 }
 
 func (p *Project) StatePersistenceEnabled() bool {
-	return *p.cfg.StatePersistence
+	return p.cfg.Persist
 }
 
 func (p *Project) Name() string {
-	return p.cfg.ProjectName
+	return p.cfg.ProjectName()
 }

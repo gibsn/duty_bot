@@ -30,7 +30,7 @@ func NewProductionCal(c *cfg.ProductionCalConfig) *ProductionCal {
 		cfg:       c,
 		daysCache: NewDayOffsCache(),
 		httpClient: http.Client{
-			Timeout: *c.APITimeout,
+			Timeout: c.APITimeout,
 		},
 	}
 
@@ -69,7 +69,7 @@ func (cal *ProductionCal) fetchDayOffs(today time.Time, days uint) (map[date]boo
 
 // Init populates the cache for the first time synchronously
 func (cal *ProductionCal) Init() error {
-	newCache, err := cal.fetchDayOffs(time.Now(), *cal.cfg.CacheInterval)
+	newCache, err := cal.fetchDayOffs(time.Now(), cal.cfg.CacheInterval)
 	if err != nil {
 		return fmt.Errorf("could not initialise day offs cache: %w", err)
 	}
@@ -85,11 +85,11 @@ func (cal *ProductionCal) Init() error {
 // calendar for CacheInterval days starting with today
 func (cal *ProductionCal) Routine() {
 	for {
-		time.Sleep(*cal.cfg.RecachePeriod)
+		time.Sleep(cal.cfg.RecachePeriod)
 
 		log.Println("info: will refetch day offs cache")
 
-		newCache, err := cal.fetchDayOffs(time.Now(), *cal.cfg.CacheInterval)
+		newCache, err := cal.fetchDayOffs(time.Now(), cal.cfg.CacheInterval)
 		if err != nil {
 			log.Printf("error: could not refetch day offs cache: %v", err)
 			log.Printf("warning: will use the old cache until next refetch")

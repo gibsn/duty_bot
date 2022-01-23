@@ -1,19 +1,18 @@
 package cfg
 
 import (
-	"flag"
 	"log"
 	"time"
 )
 
 type ProductionCalConfig struct {
-	Enabled *bool
+	Enabled bool
 
-	CacheInterval *uint
-	RecachePeriod *time.Duration
+	CacheInterval uint          `mapstructure:"cache_interval"`
+	RecachePeriod time.Duration `mapstructure:"recache_period"`
 
 	// APIHost    *string
-	APITimeout *time.Duration
+	APITimeout time.Duration `mapstructure:"timeout"`
 }
 
 const (
@@ -21,7 +20,7 @@ const (
 	defaultCacheInterval = 7
 	defaultRecachePeriod = 24 * time.Hour
 	// defaultAPIHost       = "https://isdayoff.ru"
-	defaultAPITimeout = 1 * time.Second
+	defaultAPITimeout = 5 * time.Second
 )
 
 const (
@@ -35,44 +34,29 @@ const (
 )
 
 func NewProductionCalConfig() *ProductionCalConfig {
-	c := &ProductionCalConfig{
-		Enabled: flag.Bool(
-			cfgProductionCalEnabledTitle, defaultEnabled,
-			"use production calendar to find out about holidays",
-		),
-		CacheInterval: flag.Uint(
-			cfgProductionCalCacheIntervalTitle, defaultCacheInterval,
-			"number of days to cache info about",
-		),
-		RecachePeriod: flag.Duration(
-			cfgProductionCalRecachePeriodTitle, defaultRecachePeriod,
-			"how often to refetch prodction calendar",
-		),
-		// APIHost: flag.String(
-		// 	cfgProductionCalAPIHostTitle, defaultAPIHost,
-		// 	"production calendar API host",
-		// ),
-		APITimeout: flag.Duration(
-			cfgProductionCalAPITimeoutTitle, defaultAPITimeout,
-			"production calendar API timeout",
-		),
-	}
+	c := &ProductionCalConfig{}
 
 	return c
 }
 
 func (c *ProductionCalConfig) Validate() error {
-	// if len(*c.APIHost) == 0 {
-	// 	return fmt.Errorf("invalid %s: %w", cfgProductionCalAPIHostTitle, ErrMustNotBeEmpty)
-	// }
+	if c.CacheInterval == 0 {
+		c.CacheInterval = defaultCacheInterval
+	}
+	if c.RecachePeriod == 0 {
+		c.RecachePeriod = defaultRecachePeriod
+	}
+	if c.APITimeout == 0 {
+		c.APITimeout = defaultAPITimeout
+	}
 
 	return nil
 }
 
 func (c *ProductionCalConfig) Print() {
-	log.Print(cfgProductionCalEnabledTitle+":", *c.Enabled)
-	log.Print(cfgProductionCalCacheIntervalTitle+":", *c.CacheInterval)
-	log.Print(cfgProductionCalRecachePeriodTitle+":", *c.RecachePeriod)
-	// log.Print(cfgProductionCalAPIHostTitle+":", *c.APIHost)
-	log.Print(cfgProductionCalAPITimeoutTitle+":", *c.APITimeout)
+	log.Print(cfgProductionCalEnabledTitle+": ", c.Enabled)
+	log.Print(cfgProductionCalCacheIntervalTitle+": ", c.CacheInterval)
+	log.Print(cfgProductionCalRecachePeriodTitle+": ", c.RecachePeriod)
+	// log.Print(cfgProductionCalAPIHostTitle+": ", *c.APIHost)
+	log.Print(cfgProductionCalAPITimeoutTitle+": ", c.APITimeout)
 }

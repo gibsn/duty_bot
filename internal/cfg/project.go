@@ -1,9 +1,17 @@
 package cfg
 
 import (
-	"flag"
 	"fmt"
 	"log"
+)
+
+const (
+	applicantsParamName  = "applicants"
+	messageParamName     = "message"
+	periodParamName      = "period"
+	skipDayOffsParamName = "skip_dayoffs"
+	channelParamName     = "channel"
+	persistParamName     = "persist"
 )
 
 const (
@@ -16,68 +24,78 @@ const (
 )
 
 type ProjectConfig struct {
-	ProjectName string
+	projectName string
 
-	DutyApplicants *string
-	MessagePattern *string
+	Applicants     string
+	MessagePattern string `mapstructure:"message"`
 
-	Period      *string
-	SkipDayOffs *bool
+	Period      string
+	SkipDayOffs bool `mapstructure:"skip_dayoffs"`
 
-	NotifyChannel *string
+	Channel string
+	Persist bool
 
-	StatePersistence *bool
+	MyTeam *MyTeamConfig
 }
 
 func NewProjectConfig(projectName string) *ProjectConfig {
-	return &ProjectConfig{
-		ProjectName: projectName,
-		DutyApplicants: flag.String(
-			"d", defaultDutyApplicants,
-			"duty applicants joined by comma",
-		),
-		MessagePattern: flag.String(
-			"m", defaultMessagePattern,
-			"pattern of message that will be sent to communication channel",
-		),
-		Period: flag.String(
-			"p", string(defaultPeriod),
-			"how often a person changes",
-		),
-		SkipDayOffs: flag.Bool(
-			"w", defaultSkipDayOffs,
-			"skip duty change at day offs",
-		),
-		NotifyChannel: flag.String(
-			"c", string(defaultNotifyChannel),
-			"channel for scheduler notifications",
-		),
-		StatePersistence: flag.Bool(
-			"s", defaultStatePersistence,
-			"save states to disk to mitigate restarts",
-		),
+	cfg := &ProjectConfig{
+		projectName: projectName,
+		MyTeam:      NewMyTeamConfig(projectName),
 	}
+
+	return cfg
+}
+
+func (cfg ProjectConfig) paramWithPrefix() func(param string) string {
+	return paramWithPrefix(cfg.projectName)
 }
 
 func (cfg *ProjectConfig) Validate() error {
-	if len(*cfg.DutyApplicants) == 0 {
-		return fmt.Errorf("invalid duty_applicants: %w", ErrMustNotBeEmpty)
+	paramNameFactory := cfg.paramWithPrefix()
+
+	if len(cfg.Applicants) == 0 {
+		return fmt.Errorf("%s: %w", paramNameFactory(applicantsParamName), ErrMustNotBeEmpty)
 	}
-	if err := PeriodType(*cfg.Period).Validate(); err != nil {
-		return fmt.Errorf("invalid period '%s': %w", *cfg.Period, err)
+
+	if len(cfg.Period) == 0 {
+		cfg.Period = string(defaultPeriod)
 	}
-	if err := NotifyChannelType(*cfg.NotifyChannel).Validate(); err != nil {
-		return fmt.Errorf("invalid notify_channel '%s': %w", *cfg.NotifyChannel, err)
+	if err := PeriodType(cfg.Period).Validate(); err != nil {
+		return fmt.Errorf("%s '%s': %w", paramNameFactory(periodParamName), cfg.Period, err)
+	}
+
+	switch NotifyChannelType(cfg.Channel) {
+	case MyTeamChannelType:
+		if err := cfg.MyTeam.Validate(); err != nil {
+			return fmt.Errorf("invalid myteam config: %w", err)
+		}
+	case "":
+		cfg.Channel = string(EmptyChannelType)
+	}
+
+	if err := NotifyChannelType(cfg.Channel).Validate(); err != nil {
+		return fmt.Errorf("%s '%s': %w", paramNameFactory(channelParamName), cfg.Channel, err)
 	}
 
 	return nil
 }
 
 func (cfg *ProjectConfig) Print() {
-	log.Printf("%s.duty_applicants: %s", cfg.ProjectName, *cfg.DutyApplicants)
-	log.Printf("%s.pattern: %s", cfg.ProjectName, *cfg.MessagePattern)
-	log.Printf("%s.period: %s", cfg.ProjectName, *cfg.Period)
-	log.Printf("%s.skip_day_offs: %t", cfg.ProjectName, *cfg.SkipDayOffs)
-	log.Printf("%s.notify_channel: %s", cfg.ProjectName, *cfg.NotifyChannel)
-	log.Printf("%s.state_persistence: %t", cfg.ProjectName, *cfg.StatePersistence)
+	paramNameFactory := cfg.paramWithPrefix()
+
+	log.Printf("%s: %s", paramNameFactory(applicantsParamName), cfg.Applicants)
+	log.Printf("%s: %s", paramNameFactory(messageParamName), cfg.MessagePattern)
+	log.Printf("%s: %s", paramNameFactory(periodParamName), cfg.Period)
+	log.Printf("%s: %t", paramNameFactory(skipDayOffsParamName), cfg.SkipDayOffs)
+	log.Printf("%s: %s", paramNameFactory(channelParamName), cfg.Channel)
+	log.Printf("%s: %t", paramNameFactory(persistParamName), cfg.Persist)
+
+	if NotifyChannelType(cfg.Channel) == MyTeamChannelType {
+		cfg.MyTeam.Print()
+	}
+}
+
+func (cfg ProjectConfig) ProjectName() string {
+	return cfg.projectName
 }

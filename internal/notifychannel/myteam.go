@@ -7,7 +7,7 @@ import (
 
 	"github.com/gibsn/duty_bot/internal/cfg"
 
-	"github.com/mail-ru-im/bot-golang" //nolint: goimports
+	botgolang "github.com/mail-ru-im/bot-golang"
 )
 
 type MyTeamNotifyChannel struct {
@@ -18,9 +18,9 @@ type MyTeamNotifyChannel struct {
 
 func NewMyTeamNotifyChannel(config *cfg.MyTeamConfig) (*MyTeamNotifyChannel, error) {
 	// currently myteam library has no option to provide a timeout
-	http.DefaultClient.Timeout = *config.MyTeamTimeout
+	http.DefaultClient.Timeout = config.Timeout
 
-	bot, err := botgolang.NewBot(*config.MyTeamToken, botgolang.BotApiURL(*config.MyTeamAPIURL))
+	bot, err := botgolang.NewBot(config.Token, botgolang.BotApiURL(config.APIURL))
 	if err != nil {
 		return nil, fmt.Errorf("could not create myteam bot: %w", err)
 	}
@@ -29,7 +29,7 @@ func NewMyTeamNotifyChannel(config *cfg.MyTeamConfig) (*MyTeamNotifyChannel, err
 
 	return &MyTeamNotifyChannel{
 		bot:    bot,
-		chatID: *config.MyTeamChatID,
+		chatID: config.ChatID,
 	}, nil
 }
 

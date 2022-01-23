@@ -215,7 +215,7 @@ func TestProjectShouldChangePerson(t *testing.T) {
 	for _, testcase := range testcases {
 		project, _ := NewProject("test_project", applicants1, testcase.period)
 		project.timeOfLastChange = testcase.timeOfLastChange
-		*project.cfg.SkipDayOffs = true
+		project.cfg.SkipDayOffs = true
 
 		output := project.shouldChangePerson(testcase.timeNow)
 		if output != testcase.output {
@@ -250,7 +250,7 @@ func TestProjectShouldChangePersonWithDayOff(t *testing.T) {
 	for _, testcase := range testcases {
 		project, _ := NewProject("test_project", applicants1, testcase.period)
 		project.timeOfLastChange = testcase.timeOfLastChange
-		*project.cfg.SkipDayOffs = true
+		project.cfg.SkipDayOffs = true
 
 		project.SetDayOffsDB(dummyDayOffDB{})
 

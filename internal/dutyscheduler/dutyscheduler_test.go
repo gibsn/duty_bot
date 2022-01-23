@@ -11,11 +11,14 @@ import (
 )
 
 func TestDutyScheduler(t *testing.T) {
-	config := cfg.NewConfig()
+	config := &cfg.Config{
+		Mailx:         cfg.NewProjectConfig("mailx"),
+		ProductionCal: cfg.NewProductionCalConfig(),
+	}
 
-	*config.Mailx.DutyApplicants = "test1,test2"
-	*config.Mailx.MessagePattern = "%s"
-	*config.Mailx.Period = string(cfg.EverySecond)
+	config.Mailx.Applicants = "test1,test2"
+	config.Mailx.MessagePattern = "%s"
+	config.Mailx.Period = string(cfg.EverySecond)
 
 	pipe := notifychannel.NewPipe()
 
@@ -23,7 +26,7 @@ func TestDutyScheduler(t *testing.T) {
 	sch.SetNotifyChannel(pipe)
 
 	go func() {
-		validateIncomingEvents(t, *config.Mailx.DutyApplicants, pipe)
+		validateIncomingEvents(t, config.Mailx.Applicants, pipe)
 		sch.Shutdown()
 	}()
 

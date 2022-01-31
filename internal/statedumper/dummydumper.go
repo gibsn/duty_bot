@@ -8,6 +8,6 @@ func NewDummyDumper() DummyDumper {
 	return DummyDumper{}
 }
 
-func (_ DummyDumper) Dump(_ Dumpable) error {
+func (DummyDumper) Dump(_ Dumpable) error {
 	return nil
 }

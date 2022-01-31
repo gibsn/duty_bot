@@ -36,7 +36,7 @@ type DutyScheduler struct {
 
 	shutdownInit   chan struct{}
 	eventsFinished chan struct{}
-	mu             sync.RWMutex
+	mu             *sync.RWMutex
 }
 
 // Event represents a change for a given project
@@ -80,6 +80,7 @@ func newDutySchedulerStopped(
 		eventsQ:        make(chan Event, 1),
 		shutdownInit:   make(chan struct{}),
 		eventsFinished: make(chan struct{}),
+		mu:             new(sync.RWMutex),
 	}
 
 	if err := sch.initNotifyChannel(); err != nil {
@@ -249,10 +250,10 @@ func (sch *DutyScheduler) notificaionSenderRoutine() {
 		notificationText := fmt.Sprintf(sch.project.cfg.MessagePattern, e.newPerson)
 
 		sch.mu.RLock()
-		notifyChannel := sch.notifyChannel
+		notifyChannelCopy := sch.notifyChannel
 		sch.mu.RUnlock()
 
-		if err := notifyChannel.Send(notificationText); err != nil {
+		if err := notifyChannelCopy.Send(notificationText); err != nil {
 			log.Printf(
 				"error: dutyscheduler [%s]: could not send update: %v",
 				sch.ProjectName(), err,

@@ -1,7 +1,9 @@
-package cfg
+package dutyscheduler
 
 import (
 	"time"
+
+	"github.com/gibsn/duty_bot/internal/cfg"
 )
 
 type PeriodType string
@@ -28,7 +30,7 @@ func (t PeriodType) Validate() error {
 		return nil
 	}
 
-	return ErrNotSupported
+	return cfg.ErrNotSupported
 }
 
 func (t PeriodType) ToDuration() time.Duration {

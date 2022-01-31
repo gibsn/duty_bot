@@ -1,9 +1,11 @@
-package cfg
+package myteam
 
 import (
 	"fmt"
 	"log"
 	"time"
+
+	cfgUtil "github.com/gibsn/duty_bot/internal/cfg"
 )
 
 const (
@@ -20,7 +22,7 @@ const (
 	cfgMyTeamTimeoutTitle = cfgMyTeamPrefix + ".timeout"
 )
 
-type MyTeamConfig struct {
+type Config struct {
 	prefix string
 
 	Token   string
@@ -29,22 +31,26 @@ type MyTeamConfig struct {
 	Timeout time.Duration
 }
 
-func NewMyTeamConfig(prefix string) *MyTeamConfig {
-	config := &MyTeamConfig{
+func NewConfig(prefix string) Config {
+	config := Config{
 		prefix: prefix,
 	}
 
 	return config
 }
 
-func (cfg *MyTeamConfig) Validate() error {
+func (cfg *Config) Validate() error {
 	paramNameFactory := cfg.paramWithPrefix()
 
 	if len(cfg.Token) == 0 {
-		return fmt.Errorf("%s: %w", paramNameFactory(cfgMyTeamTokenTitle), ErrMustNotBeEmpty)
+		return fmt.Errorf(
+			"%s: %w", paramNameFactory(cfgMyTeamTokenTitle), cfgUtil.ErrMustNotBeEmpty,
+		)
 	}
 	if len(cfg.ChatID) == 0 {
-		return fmt.Errorf("%s: %w", paramNameFactory(cfgMyTeamChatIDTitle), ErrMustNotBeEmpty)
+		return fmt.Errorf(
+			"%s: %w", paramNameFactory(cfgMyTeamChatIDTitle), cfgUtil.ErrMustNotBeEmpty,
+		)
 	}
 
 	if len(cfg.APIURL) == 0 {
@@ -57,7 +63,7 @@ func (cfg *MyTeamConfig) Validate() error {
 	return nil
 }
 
-func (cfg MyTeamConfig) Print() {
+func (cfg Config) Print() {
 	paramNameFactory := cfg.paramWithPrefix()
 
 	// log.Printf("myteam_token: %s", *cfg.MyTeamToken) // token is sensitive
@@ -66,6 +72,6 @@ func (cfg MyTeamConfig) Print() {
 	log.Print(fmt.Sprintf("%s: %s", paramNameFactory(cfgMyTeamTimeoutTitle), cfg.Timeout))
 }
 
-func (cfg MyTeamConfig) paramWithPrefix() func(param string) string {
-	return paramWithPrefix(cfg.prefix)
+func (cfg Config) paramWithPrefix() func(param string) string {
+	return cfgUtil.ParamWithPrefix(cfg.prefix)
 }

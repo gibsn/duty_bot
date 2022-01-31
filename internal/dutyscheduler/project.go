@@ -26,25 +26,25 @@ type dayOffsDB interface {
 // Project represents an actual project with employes that take duty cyclically
 // after given period of time
 type Project struct {
-	cfg *cfg.ProjectConfig
+	cfg Config
 
 	dutyApplicants []string
 	currentPerson  uint64 // idx into dutyApplicants
 
 	timeOfLastChange time.Time // previous time the person was changed
-	period           cfg.PeriodType
+	period           PeriodType
 	dayOffsDB        dayOffsDB // if not nil, use for info about dayoffs
 
 	mu *sync.RWMutex
 }
 
 // NewProject created a new project with the given parameters. Mostly used for testing purposes
-func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error) {
+func NewProject(name, applicants string, period PeriodType) (*Project, error) {
 	periodStr := string(period)
 	skipDayOffs := false
 	statePersistence := false
 
-	fakeCfg := cfg.NewProjectConfig(name)
+	fakeCfg := NewConfig(name)
 	fakeCfg.Applicants = applicants
 	fakeCfg.Period = periodStr
 	fakeCfg.SkipDayOffs = skipDayOffs
@@ -53,11 +53,11 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 	return NewProjectFromConfig(fakeCfg)
 }
 
-func NewProjectFromConfig(config *cfg.ProjectConfig) (*Project, error) {
+func NewProjectFromConfig(config Config) (*Project, error) {
 	p := &Project{
 		cfg:           config,
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
-		period:        cfg.PeriodType(config.Period),
+		period:        PeriodType(config.Period),
 		mu:            &sync.RWMutex{},
 	}
 

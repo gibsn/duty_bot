@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/gibsn/duty_bot/internal/cfg"
 )
 
 const (
@@ -18,14 +16,14 @@ const (
 )
 
 func TestNewProjectFails(t *testing.T) {
-	_, err := NewProject("test_project", applicantsNull, cfg.EverySecond)
+	_, err := NewProject("test_project", applicantsNull, EverySecond)
 	if err == nil {
 		t.Errorf("testcase '%s': must have failed", applicantsNull)
 	}
 }
 
 func TestProjectNextPerson(t *testing.T) {
-	project, _ := NewProject("test_project", applicants2, cfg.EverySecond)
+	project, _ := NewProject("test_project", applicants2, EverySecond)
 
 	applicantsParsed := strings.Split(applicants2, ",")
 	firstPerson, secondPerson := applicantsParsed[0], applicantsParsed[1]
@@ -75,7 +73,7 @@ func TestProjectRestoreState(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		project, _ := NewProject("test_project", applicants2, cfg.EveryHour)
+		project, _ := NewProject("test_project", applicants2, EveryHour)
 
 		if err := project.RestoreState(&testcase.input); err != nil {
 			t.Errorf("testcase '%v': could not restore state: %v", testcase.input, err)
@@ -106,7 +104,7 @@ func TestProjectRestoreStateFails(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		project, _ := NewProject("test_project", applicants2, cfg.EveryHour)
+		project, _ := NewProject("test_project", applicants2, EveryHour)
 
 		if err := project.RestoreState(&testcase.input); err == nil {
 			t.Errorf("testcase '%v': must have failed", testcase.input)
@@ -116,7 +114,7 @@ func TestProjectRestoreStateFails(t *testing.T) {
 }
 
 func TestProjectDumpState(t *testing.T) {
-	project, _ := NewProject("test_project", applicants2, cfg.EveryHour)
+	project, _ := NewProject("test_project", applicants2, EveryHour)
 
 	currTime := time.Now().Truncate(time.Second)
 	project.SetTimeOfLastChange(currTime)
@@ -150,7 +148,7 @@ func TestProjectDumpState(t *testing.T) {
 
 type shouldChangePersonTestcase struct {
 	timeOfLastChange time.Time
-	period           cfg.PeriodType
+	period           PeriodType
 	timeNow          time.Time
 	output           bool
 }
@@ -176,37 +174,37 @@ func TestProjectShouldChangePerson(t *testing.T) {
 	testcases := []shouldChangePersonTestcase{
 		{
 			timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Second),
-			period:           cfg.EverySecond,
+			period:           EverySecond,
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           true,
 		},
 		{
 			timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Minute),
-			period:           cfg.EveryMinute,
+			period:           EveryMinute,
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           true,
 		},
 		{
 			timeOfLastChange: time.Unix(1611266369, 0).Add(-2 * time.Hour),
-			period:           cfg.EveryHour,
+			period:           EveryHour,
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           true,
 		},
 		{
 			timeOfLastChange: time.Unix(1611266369, 0).Add(-25 * time.Hour),
-			period:           cfg.EveryDay,
+			period:           EveryDay,
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           true,
 		},
 		{
 			timeOfLastChange: time.Unix(1611266369, 0),
-			period:           cfg.EverySecond,
+			period:           EverySecond,
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           false,
 		},
 		{ // no change at weekend
 			timeOfLastChange: time.Unix(1611351955, 0),
-			period:           cfg.EverySecond,
+			period:           EverySecond,
 			timeNow:          time.Unix(1611362756, 0), // Sat Jan 23 03:45:55 MSK 2021
 			output:           false,
 		},
@@ -229,19 +227,19 @@ func TestProjectShouldChangePersonWithDayOff(t *testing.T) {
 	testcases := []shouldChangePersonTestcase{
 		{ // no change on holiday
 			timeOfLastChange: time.Unix(1609423211, 0),
-			period:           cfg.EverySecond,
+			period:           EverySecond,
 			timeNow:          time.Unix(1609513211, 0), // Fri Jan 01 2021 18:00:11 GMT+0300 (MSK)
 			output:           false,
 		},
 		{ // fallback to isWeekEnd
 			timeOfLastChange: time.Unix(1611351955, 0),
-			period:           cfg.EverySecond,
+			period:           EverySecond,
 			timeNow:          time.Unix(1611362756, 0), // Sat Jan 23 03:45:55 MSK 2021
 			output:           false,
 		},
 		{ // fallback to isWeekEnd
 			timeOfLastChange: time.Unix(1611266369, 0).Add(-25 * time.Hour),
-			period:           cfg.EveryDay,
+			period:           EveryDay,
 			timeNow:          time.Unix(1611266369, 0), // Fri Jan 22 00:59:29 MSK 2021
 			output:           true,
 		},
@@ -264,7 +262,7 @@ func TestProjectShouldChangePersonWithDayOff(t *testing.T) {
 
 type timeTillNextChangeTestcase struct {
 	timeOfLastChange time.Time
-	period           cfg.PeriodType
+	period           PeriodType
 	timeNow          time.Time
 	output           time.Duration
 }
@@ -273,19 +271,19 @@ func TestTimeTillNextChange(t *testing.T) {
 	testcases := []timeTillNextChangeTestcase{
 		{
 			timeOfLastChange: time.Unix(1612629060, 0), // Sat Feb  6 19:31:00 MSK 2021
-			period:           cfg.EveryDay,
+			period:           EveryDay,
 			timeNow:          time.Unix(1612629060, 0), // change just happened
-			output:           cfg.EveryDay.ToDuration(),
+			output:           EveryDay.ToDuration(),
 		},
 		{
 			timeOfLastChange: time.Unix(1612629060, 0), // Sat Feb  6 19:31:00 MSK 2021
-			period:           cfg.EveryDay,
+			period:           EveryDay,
 			timeNow:          time.Unix(1612707360, 0), // last change was less than aperiod ago
 			output:           8100 * time.Second,
 		},
 		{
 			timeOfLastChange: time.Unix(1612629060, 0), // Sat Feb  6 19:31:00 MSK 2021
-			period:           cfg.EveryDay,
+			period:           EveryDay,
 			timeNow:          time.Unix(1612880160, 0), // last change was multiple periods ago
 			output:           8100 * time.Second,
 		},

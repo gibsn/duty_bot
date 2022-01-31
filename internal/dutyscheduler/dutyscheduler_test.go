@@ -2,37 +2,42 @@ package dutyscheduler
 
 import (
 	"bufio"
+	"log"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gibsn/duty_bot/internal/cfg"
 	"github.com/gibsn/duty_bot/internal/notifychannel"
+	"github.com/gibsn/duty_bot/internal/statedumper"
 )
 
 func TestDutyScheduler(t *testing.T) {
-	config := &cfg.Config{
-		Mailx:         cfg.NewProjectConfig("mailx"),
-		ProductionCal: cfg.NewProductionCalConfig(),
+	config := Config{
+		Name:           "test_project",
+		Applicants:     "test1,test2",
+		MessagePattern: "%s",
+		Period:         string(EverySecond),
 	}
-
-	config.Mailx.Applicants = "test1,test2"
-	config.Mailx.MessagePattern = "%s"
-	config.Mailx.Period = string(cfg.EverySecond)
 
 	pipe := notifychannel.NewPipe()
 
-	sch, _ := NewDutyScheduler(config)
+	sch, err := newDutySchedulerStopped(config, statedumper.NewDummyDumper(), nil)
+	if err != nil {
+		t.Fatalf("could not init dutyscheduler: %v", err)
+	}
+
 	sch.SetNotifyChannel(pipe)
+	log.Println("info: tests: changed notifychannel to pipe, launching events routine")
+
+	go sch.eventsRoutine()
+	go sch.notificaionSenderRoutine()
 
 	go func() {
-		validateIncomingEvents(t, config.Mailx.Applicants, pipe)
+		validateIncomingEvents(t, config.Applicants, pipe)
 		sch.Shutdown()
 	}()
 
-	go sch.watchdog(t)
-
-	sch.Routine()
+	sch.watchdog(t)
 }
 
 // currently not working because NewConfig reset flags which produces error

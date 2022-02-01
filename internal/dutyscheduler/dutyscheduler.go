@@ -42,7 +42,6 @@ type DutyScheduler struct {
 
 // Event represents a change for a given project
 type Event struct {
-	projectID int
 	newPerson string
 }
 
@@ -140,6 +139,8 @@ func (sch *DutyScheduler) restoreState() {
 			"error: dutyscheduler [%s]: could not get scheduling state from state dumper: %v",
 			sch.ProjectName(), err,
 		)
+
+		return
 	}
 
 	if err := sch.project.RestoreState(state); err != nil {

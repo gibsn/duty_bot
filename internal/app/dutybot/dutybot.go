@@ -93,7 +93,7 @@ func (bot *DutyBot) signalHandler() {
 	}
 }
 
-// Wait waits the bot finish gracefully
+// Wait waits for the bot finish gracefully
 func (bot *DutyBot) Wait() {
 	<-bot.finished
 }

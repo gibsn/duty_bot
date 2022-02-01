@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/gibsn/duty_bot/internal/cfg"
-	"github.com/gibsn/duty_bot/internal/dutyscheduler"
+	"github.com/gibsn/duty_bot/internal/app/dutybot"
+	"github.com/gibsn/duty_bot/internal/app/dutybot/cfg"
 )
 
 func main() {
@@ -21,12 +21,12 @@ func main() {
 
 	config.Print()
 
-	sch, err := dutyscheduler.NewDutyScheduler(config)
+	bot, err := dutybot.NewDutyBot(config)
 	if err != nil {
 		log.Fatalf("fatal: could not initialise scheduler: %v", err)
 	}
 
-	sch.Routine()
+	bot.Wait()
 
 	log.Println("info: exiting")
 }

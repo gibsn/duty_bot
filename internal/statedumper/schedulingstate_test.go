@@ -1,4 +1,4 @@
-package dutyscheduler
+package statedumper
 
 import (
 	"strings"
@@ -26,21 +26,21 @@ func TestNewSchedulingState(t *testing.T) {
 			continue
 		}
 
-		if state.name != testcase.output.name {
+		if state.Name != testcase.output.Name {
 			t.Errorf("expected '%s', got '%s'",
-				testcase.output.name, state.name,
+				testcase.output.Name, state.Name,
 			)
 			continue
 		}
-		if state.currentPerson != testcase.output.currentPerson {
+		if state.CurrentPerson != testcase.output.CurrentPerson {
 			t.Errorf("expected '%d', got '%d'",
-				testcase.output.currentPerson, state.currentPerson,
+				testcase.output.CurrentPerson, state.CurrentPerson,
 			)
 			continue
 		}
-		if !state.timeOfLastChange.Equal(testcase.output.timeOfLastChange) {
+		if !state.TimeOfLastChange.Equal(testcase.output.TimeOfLastChange) {
 			t.Errorf("expected '%v', got '%v'",
-				testcase.output.timeOfLastChange, state.timeOfLastChange,
+				testcase.output.TimeOfLastChange, state.TimeOfLastChange,
 			)
 			continue
 		}

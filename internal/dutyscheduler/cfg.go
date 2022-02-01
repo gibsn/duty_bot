@@ -1,8 +1,12 @@
-package cfg
+package dutyscheduler
 
 import (
 	"fmt"
 	"log"
+
+	cfgUtil "github.com/gibsn/duty_bot/internal/cfg"
+	"github.com/gibsn/duty_bot/internal/notifychannel"
+	"github.com/gibsn/duty_bot/internal/notifychannel/myteam"
 )
 
 const (
@@ -16,11 +20,11 @@ const (
 
 const (
 	defaultPeriod        = EveryDay
-	defaultNotifyChannel = EmptyChannelType
+	defaultNotifyChannel = notifychannel.EmptyChannelType
 )
 
-type ProjectConfig struct {
-	projectName string
+type Config struct {
+	Name string
 
 	Applicants     string
 	MessagePattern string `mapstructure:"message"`
@@ -31,27 +35,26 @@ type ProjectConfig struct {
 	Channel string
 	Persist bool
 
-	MyTeam *MyTeamConfig
+	MyTeam myteam.Config `mapstructure:"myteam"`
 }
 
-func NewProjectConfig(projectName string) *ProjectConfig {
-	cfg := &ProjectConfig{
-		projectName: projectName,
-		MyTeam:      NewMyTeamConfig(projectName),
-	}
+func NewConfig() Config {
+	cfg := Config{}
 
 	return cfg
 }
 
-func (cfg ProjectConfig) paramWithPrefix() func(param string) string {
-	return paramWithPrefix(cfg.projectName)
+func (cfg Config) paramWithPrefix() func(name string) string {
+	return cfgUtil.ParamWithPrefix(cfg.Name)
 }
 
-func (cfg *ProjectConfig) Validate() error {
+func (cfg *Config) Validate() error {
 	paramNameFactory := cfg.paramWithPrefix()
 
 	if len(cfg.Applicants) == 0 {
-		return fmt.Errorf("%s: %w", paramNameFactory(applicantsParamName), ErrMustNotBeEmpty)
+		return fmt.Errorf(
+			"%s: %w", paramNameFactory(applicantsParamName), cfgUtil.ErrMustNotBeEmpty,
+		)
 	}
 
 	if len(cfg.Period) == 0 {
@@ -61,23 +64,25 @@ func (cfg *ProjectConfig) Validate() error {
 		return fmt.Errorf("%s '%s': %w", paramNameFactory(periodParamName), cfg.Period, err)
 	}
 
-	switch NotifyChannelType(cfg.Channel) {
-	case MyTeamChannelType:
+	switch notifychannel.Type(cfg.Channel) {
+	case notifychannel.MyTeamChannelType:
 		if err := cfg.MyTeam.Validate(); err != nil {
 			return fmt.Errorf("invalid myteam config: %w", err)
 		}
+
+		cfg.MyTeam.SetPrefix(cfg.Name)
 	case "":
 		cfg.Channel = string(defaultNotifyChannel)
 	}
 
-	if err := NotifyChannelType(cfg.Channel).Validate(); err != nil {
+	if err := notifychannel.Type(cfg.Channel).Validate(); err != nil {
 		return fmt.Errorf("%s '%s': %w", paramNameFactory(channelParamName), cfg.Channel, err)
 	}
 
 	return nil
 }
 
-func (cfg *ProjectConfig) Print() {
+func (cfg *Config) Print() {
 	paramNameFactory := cfg.paramWithPrefix()
 
 	log.Printf("%s: %s", paramNameFactory(applicantsParamName), cfg.Applicants)
@@ -87,11 +92,12 @@ func (cfg *ProjectConfig) Print() {
 	log.Printf("%s: %s", paramNameFactory(channelParamName), cfg.Channel)
 	log.Printf("%s: %t", paramNameFactory(persistParamName), cfg.Persist)
 
-	if NotifyChannelType(cfg.Channel) == MyTeamChannelType {
+	if notifychannel.Type(cfg.Channel) == notifychannel.MyTeamChannelType {
 		cfg.MyTeam.Print()
 	}
 }
 
-func (cfg ProjectConfig) ProjectName() string {
-	return cfg.projectName
+// StatePersistenceEnabled reports whether any project has state persistence enabled
+func (cfg Config) StatePersistenceEnabled() bool {
+	return cfg.Persist
 }

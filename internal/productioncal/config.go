@@ -1,11 +1,11 @@
-package cfg
+package productioncal
 
 import (
 	"log"
 	"time"
 )
 
-type ProductionCalConfig struct {
+type Config struct {
 	Enabled bool
 
 	CacheInterval uint          `mapstructure:"cache_interval"`
@@ -32,13 +32,13 @@ const (
 	cfgProductionCalAPITimeoutTitle = cfgProductionCalPrefix + ".timeout"
 )
 
-func NewProductionCalConfig() *ProductionCalConfig {
-	c := &ProductionCalConfig{}
+func NewConfig() *Config {
+	c := &Config{}
 
 	return c
 }
 
-func (c *ProductionCalConfig) Validate() error {
+func (c *Config) Validate() error {
 	if c.CacheInterval == 0 {
 		c.CacheInterval = defaultCacheInterval
 	}
@@ -52,7 +52,7 @@ func (c *ProductionCalConfig) Validate() error {
 	return nil
 }
 
-func (c *ProductionCalConfig) Print() {
+func (c *Config) Print() {
 	log.Print(cfgProductionCalEnabledTitle+": ", c.Enabled)
 	log.Print(cfgProductionCalCacheIntervalTitle+": ", c.CacheInterval)
 	log.Print(cfgProductionCalRecachePeriodTitle+": ", c.RecachePeriod)

@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/anatoliyfedorenko/isdayoff"
-
-	"github.com/gibsn/duty_bot/internal/cfg"
 )
 
 // ProductionCal can answer whether the given date is a day off according to
@@ -16,7 +14,7 @@ import (
 // today. If the given date is not present in cache an error is returned. Cache is
 // refetched every RecachePeriod.
 type ProductionCal struct {
-	cfg *cfg.ProductionCalConfig
+	cfg Config
 
 	daysCache *DayOffsCache
 
@@ -25,12 +23,12 @@ type ProductionCal struct {
 }
 
 // NewProductionCal is a constructor for ProductionCal
-func NewProductionCal(c *cfg.ProductionCalConfig) *ProductionCal {
+func NewProductionCal(cfg Config) *ProductionCal {
 	cal := &ProductionCal{
-		cfg:       c,
+		cfg:       cfg,
 		daysCache: NewDayOffsCache(),
 		httpClient: http.Client{
-			Timeout: c.APITimeout,
+			Timeout: cfg.APITimeout,
 		},
 	}
 
@@ -76,7 +74,9 @@ func (cal *ProductionCal) Init() error {
 
 	cal.daysCache.Set(newCache)
 
-	log.Printf("info: day offs cache has been successfully fetched: [%s]", cal.daysCache)
+	log.Printf(
+		"info: productioncal: day offs cache has been successfully fetched: [%s]", cal.daysCache,
+	)
 
 	return nil
 }
@@ -87,18 +87,21 @@ func (cal *ProductionCal) Routine() {
 	for {
 		time.Sleep(cal.cfg.RecachePeriod)
 
-		log.Println("info: will refetch day offs cache")
+		log.Println("info: productioncal: will refetch day offs cache")
 
 		newCache, err := cal.fetchDayOffs(time.Now(), cal.cfg.CacheInterval)
 		if err != nil {
-			log.Printf("error: could not refetch day offs cache: %v", err)
-			log.Printf("warning: will use the old cache until next refetch")
+			log.Printf("error: productioncal: could not refetch day offs cache: %v", err)
+			log.Printf("warning: productioncal: will use the old cache until next refetch")
 			continue
 		}
 
 		cal.daysCache.Set(newCache)
 
-		log.Printf("info: day offs cache has been successfully fetched: [%s]", cal.daysCache)
+		log.Printf(
+			"info: productioncal: day offs cache has been successfully fetched: [%s]",
+			cal.daysCache,
+		)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gibsn/duty_bot/internal/cfg"
+	"github.com/gibsn/duty_bot/internal/statedumper"
 )
 
 var (
@@ -26,25 +27,26 @@ type dayOffsDB interface {
 // Project represents an actual project with employes that take duty cyclically
 // after given period of time
 type Project struct {
-	cfg *cfg.ProjectConfig
+	cfg Config
 
 	dutyApplicants []string
 	currentPerson  uint64 // idx into dutyApplicants
 
 	timeOfLastChange time.Time // previous time the person was changed
-	period           cfg.PeriodType
+	period           PeriodType
 	dayOffsDB        dayOffsDB // if not nil, use for info about dayoffs
 
 	mu *sync.RWMutex
 }
 
 // NewProject created a new project with the given parameters. Mostly used for testing purposes
-func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error) {
+func NewProject(name, applicants string, period PeriodType) (*Project, error) {
 	periodStr := string(period)
 	skipDayOffs := false
 	statePersistence := false
 
-	fakeCfg := cfg.NewProjectConfig(name)
+	fakeCfg := NewConfig()
+	fakeCfg.Name = name
 	fakeCfg.Applicants = applicants
 	fakeCfg.Period = periodStr
 	fakeCfg.SkipDayOffs = skipDayOffs
@@ -53,11 +55,11 @@ func NewProject(name, applicants string, period cfg.PeriodType) (*Project, error
 	return NewProjectFromConfig(fakeCfg)
 }
 
-func NewProjectFromConfig(config *cfg.ProjectConfig) (*Project, error) {
+func NewProjectFromConfig(config Config) (*Project, error) {
 	p := &Project{
 		cfg:           config,
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
-		period:        cfg.PeriodType(config.Period),
+		period:        PeriodType(config.Period),
 		mu:            &sync.RWMutex{},
 	}
 
@@ -104,16 +106,16 @@ func (p *Project) SetTimeOfLastChange(t time.Time) {
 	p.timeOfLastChange = t
 }
 
-func (p *Project) RestoreState(state *SchedulingState) error {
+func (p *Project) RestoreState(state statedumper.SchedulingState) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.Name() != state.name {
-		return fmt.Errorf("'%s' != '%s': %w", p.Name(), state.name, ErrNamesDoNotMatch)
+	if p.Name() != state.Name {
+		return fmt.Errorf("'%s' != '%s': %w", p.Name(), state.Name, ErrNamesDoNotMatch)
 	}
 
-	p.currentPerson = state.currentPerson
-	p.timeOfLastChange = state.timeOfLastChange
+	p.currentPerson = state.CurrentPerson
+	p.timeOfLastChange = state.TimeOfLastChange
 
 	return nil
 }
@@ -229,5 +231,5 @@ func (p *Project) StatePersistenceEnabled() bool {
 }
 
 func (p *Project) Name() string {
-	return p.cfg.ProjectName()
+	return p.cfg.Name
 }

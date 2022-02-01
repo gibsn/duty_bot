@@ -1,15 +1,16 @@
-mailx:
-  applicants: ""                             # duty applicants joined by comma
-  message: ""                                # pattern of message that will be sent to communication channel
-  period: "every day"                        # how often a person changes
-  persist: false                             # save states to disk to mitigate restarts
-  channel: empty                             # channel for scheduler notifications (stdout|myteam)
-  skip_dayoffs: false                        # skip duty change at day offs
-  myteam:
-    token: ""                                # myteam bot token
-    chat_id: ''                              # myteam chat id where to send messages
-    api_url: 'https://myteam.mail.ru/bot/v1' # myteam API url
-    timeout: 5s                              # myteam API timeout
+projects:
+  - name: project_name                         # title of the project
+    applicants: ""                             # duty applicants joined by comma
+    message: ""                                # pattern of message that will be sent to communication channel
+    period: "every day"                        # how often a person changes
+    persist: false                             # save states to disk to mitigate restarts
+    channel: empty                             # channel for scheduler notifications (stdout|myteam)
+    skip_dayoffs: false                        # skip duty change at day offs
+    myteam:
+      token: ""                                # myteam bot token
+      chat_id: ''                              # myteam chat id where to send messages
+      api_url: 'https://myteam.mail.ru/bot/v1' # myteam API url
+      timeout: 5s                              # myteam API timeout
 production_cal:
   enabled: false                             # use production calendar to find out about holidays
   timeout: 5s                                # API timeout

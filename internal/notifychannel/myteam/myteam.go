@@ -1,22 +1,20 @@
-package notifychannel
+package myteam
 
 import (
 	"fmt"
 	"log"
 	"net/http"
 
-	"github.com/gibsn/duty_bot/internal/cfg"
-
 	botgolang "github.com/mail-ru-im/bot-golang"
 )
 
-type MyTeamNotifyChannel struct {
+type NotifyChannel struct {
 	bot *botgolang.Bot
 
 	chatID string
 }
 
-func NewMyTeamNotifyChannel(config *cfg.MyTeamConfig) (*MyTeamNotifyChannel, error) {
+func NewNotifyChannel(config Config) (*NotifyChannel, error) {
 	// currently myteam library has no option to provide a timeout
 	http.DefaultClient.Timeout = config.Timeout
 
@@ -27,13 +25,13 @@ func NewMyTeamNotifyChannel(config *cfg.MyTeamConfig) (*MyTeamNotifyChannel, err
 
 	log.Printf("info: myteam: connected to bot '%s'", bot.Info.Nick)
 
-	return &MyTeamNotifyChannel{
+	return &NotifyChannel{
 		bot:    bot,
 		chatID: config.ChatID,
 	}, nil
 }
 
-func (ch *MyTeamNotifyChannel) Send(text string) error {
+func (ch *NotifyChannel) Send(text string) error {
 	msg := ch.bot.NewTextMessage(ch.chatID, text)
 
 	if err := msg.Send(); err != nil {
@@ -47,6 +45,6 @@ func (ch *MyTeamNotifyChannel) Send(text string) error {
 	return nil
 }
 
-func (ch *MyTeamNotifyChannel) Shutdown() error {
+func (ch *NotifyChannel) Shutdown() error {
 	return nil
 }

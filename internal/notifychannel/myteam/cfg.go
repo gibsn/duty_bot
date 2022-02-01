@@ -72,6 +72,10 @@ func (cfg Config) Print() {
 	log.Print(fmt.Sprintf("%s: %s", paramNameFactory(cfgMyTeamTimeoutTitle), cfg.Timeout))
 }
 
+func (cfg *Config) SetPrefix(prefix string) {
+	cfg.prefix = prefix
+}
+
 func (cfg Config) paramWithPrefix() func(param string) string {
 	return cfgUtil.ParamWithPrefix(cfg.prefix)
 }

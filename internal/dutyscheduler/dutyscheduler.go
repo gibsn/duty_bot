@@ -46,7 +46,8 @@ type Event struct {
 	newPerson string
 }
 
-// TODO comment
+// NewDutyScheduler creates a new DutyScheduler and starts an event
+// scheduling routine.
 func NewDutyScheduler(
 	cfg Config,
 	stateDumper stateDumper,

@@ -8,14 +8,16 @@ import (
 	"sync"
 )
 
-// TODO comment
+// FileDumper is an implementation of a StateDumper that uses
+// simple files on disk.
 type FileDumper struct {
 	dumpQ  chan Dumpable
 	states map[string]SchedulingState
 	wg     sync.WaitGroup
 }
 
-// TODO comment
+// NewFileDumper creates a new FileDumper, parsing all data on disk
+// for a faster future access.
 func NewFileDumper() (*FileDumper, error) {
 	fd := &FileDumper{
 		dumpQ:  make(chan Dumpable, 1),
@@ -65,7 +67,8 @@ func (fd *FileDumper) Dump(state Dumpable) error {
 	return fmt.Errorf("could not dump state to disk: queue is full")
 }
 
-// TODO comment
+// GetState attempts to find a SchedulingState for the provided name. It returns
+// ErrNotFound in case state is not present.
 func (fd *FileDumper) GetState(name string) (SchedulingState, error) {
 	state, ok := fd.states[name]
 	if !ok {
@@ -75,7 +78,7 @@ func (fd *FileDumper) GetState(name string) (SchedulingState, error) {
 	return state, nil
 }
 
-// TODO comment
+// stateSaverRoutine dumps states to disk in background.
 func (fd *FileDumper) stateSaverRoutine() {
 	defer fd.wg.Done()
 

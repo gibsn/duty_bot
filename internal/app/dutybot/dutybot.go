@@ -14,7 +14,8 @@ import (
 	"github.com/gibsn/duty_bot/internal/statedumper"
 )
 
-// TODO comment
+// DutyBot is a struct that does scheduling for all the provided projects,
+// sends events to notifcation channels and perstists state to disk.
 type DutyBot struct {
 	cfg cfg.Config
 
@@ -26,7 +27,7 @@ type DutyBot struct {
 	finished     chan struct{}
 }
 
-// TODO comment
+// NewDutyBot creates and initialises a new DutyBot.
 func NewDutyBot(cfg cfg.Config) (*DutyBot, error) {
 	bot := &DutyBot{
 		cfg:          cfg,
@@ -98,6 +99,7 @@ func (bot *DutyBot) Wait() {
 	<-bot.finished
 }
 
+// Shutdown shuts DutyBot down gracefully.
 func (bot *DutyBot) Shutdown() {
 	log.Println("info: shutting down")
 

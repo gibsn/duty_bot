@@ -66,7 +66,7 @@ func (cfg *Config) parseConfigFile() error {
 func (cfg *Config) Validate() error {
 	for i, project := range cfg.Projects {
 		if err := cfg.Projects[i].Validate(); err != nil {
-			return fmt.Errorf("invalid config for project '%s': %w", project.ProjectName(), err)
+			return fmt.Errorf("invalid config for project '%s': %w", project.Name, err)
 		}
 	}
 
@@ -81,9 +81,10 @@ func (cfg Config) Print() {
 	log.Println("the following configuration parameters will be used:")
 
 	for _, project := range cfg.Projects {
-		log.Printf("*** %s ***", project.ProjectName())
+		log.Printf("*** %s ***", project.Name)
 		project.Print()
 	}
 
+	log.Printf("*** production calendar ***")
 	cfg.ProductionCal.Print()
 }

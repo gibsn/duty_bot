@@ -38,12 +38,8 @@ type Config struct {
 	MyTeam myteam.Config `mapstructure:"myteam"`
 }
 
-// TODO ???
-func NewConfig(projectName string) Config {
-	cfg := Config{
-		Name:   projectName,
-		MyTeam: myteam.NewConfig(projectName),
-	}
+func NewConfig() Config {
+	cfg := Config{}
 
 	return cfg
 }
@@ -73,6 +69,8 @@ func (cfg *Config) Validate() error {
 		if err := cfg.MyTeam.Validate(); err != nil {
 			return fmt.Errorf("invalid myteam config: %w", err)
 		}
+
+		cfg.MyTeam.SetPrefix(cfg.Name)
 	case "":
 		cfg.Channel = string(defaultNotifyChannel)
 	}
@@ -97,11 +95,6 @@ func (cfg *Config) Print() {
 	if notifychannel.Type(cfg.Channel) == notifychannel.MyTeamChannelType {
 		cfg.MyTeam.Print()
 	}
-}
-
-// TODO ???
-func (cfg Config) ProjectName() string {
-	return cfg.Name
 }
 
 // StatePersistenceEnabled reports whether any project has state persistence enabled

@@ -45,7 +45,8 @@ func NewProject(name, applicants string, period PeriodType) (*Project, error) {
 	skipDayOffs := false
 	statePersistence := false
 
-	fakeCfg := NewConfig(name)
+	fakeCfg := NewConfig()
+	fakeCfg.Name = name
 	fakeCfg.Applicants = applicants
 	fakeCfg.Period = periodStr
 	fakeCfg.SkipDayOffs = skipDayOffs
@@ -230,5 +231,5 @@ func (p *Project) StatePersistenceEnabled() bool {
 }
 
 func (p *Project) Name() string {
-	return p.cfg.ProjectName()
+	return p.cfg.Name
 }

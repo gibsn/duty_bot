@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/gibsn/duty_bot/internal/app/dutybot/cfg"
@@ -21,14 +22,16 @@ type DutyBot struct {
 	stateDumper   *statedumper.FileDumper
 	productionCal *productioncal.ProductionCal
 
-	finished chan struct{}
+	shutdownOnce *sync.Once
+	finished     chan struct{}
 }
 
 // TODO comment
 func NewDutyBot(cfg cfg.Config) (*DutyBot, error) {
 	bot := &DutyBot{
-		cfg:      cfg,
-		finished: make(chan struct{}, 1),
+		cfg:          cfg,
+		shutdownOnce: new(sync.Once),
+		finished:     make(chan struct{}, 1),
 	}
 
 	if cfg.ProductionCal.Enabled {
@@ -70,7 +73,12 @@ func (bot *DutyBot) initProductionCal() {
 
 //nolint: unparam
 func (bot *DutyBot) initStateDumper() error {
-	bot.stateDumper = statedumper.NewFileDumper()
+	stateDumper, err := statedumper.NewFileDumper()
+	if err != nil {
+		return err
+	}
+
+	bot.stateDumper = stateDumper
 
 	return nil
 }
@@ -101,5 +109,5 @@ func (bot *DutyBot) Shutdown() {
 
 	log.Println("info: shutdown finished")
 
-	close(bot.finished)
+	bot.shutdownOnce.Do(func() { close(bot.finished) })
 }

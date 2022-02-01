@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gibsn/duty_bot/internal/statedumper"
 )
 
 const (
@@ -45,7 +47,7 @@ func TestProjectNextPerson(t *testing.T) {
 }
 
 type restoreStateTestCase struct {
-	input              SchedulingState
+	input              statedumper.SchedulingState
 	nextPerson         string
 	shouldChangePerson bool
 }
@@ -56,17 +58,17 @@ func TestProjectRestoreState(t *testing.T) {
 
 	testcases := []restoreStateTestCase{
 		{
-			SchedulingState{"test_project", 0, time.Now().Add(-time.Hour)},
+			statedumper.SchedulingState{"test_project", 0, time.Now().Add(-time.Hour)},
 			secondPerson,
 			true,
 		},
 		{
-			SchedulingState{"test_project", 1, time.Now().Add(-time.Hour)},
+			statedumper.SchedulingState{"test_project", 1, time.Now().Add(-time.Hour)},
 			firstPerson,
 			true,
 		},
 		{
-			SchedulingState{"test_project", 1, time.Now().Add(-time.Second)},
+			statedumper.SchedulingState{"test_project", 1, time.Now().Add(-time.Second)},
 			firstPerson,
 			false,
 		},
@@ -75,7 +77,7 @@ func TestProjectRestoreState(t *testing.T) {
 	for _, testcase := range testcases {
 		project, _ := NewProject("test_project", applicants2, EveryHour)
 
-		if err := project.RestoreState(&testcase.input); err != nil {
+		if err := project.RestoreState(testcase.input); err != nil {
 			t.Errorf("testcase '%v': could not restore state: %v", testcase.input, err)
 			continue
 		}
@@ -100,13 +102,13 @@ func TestProjectRestoreState(t *testing.T) {
 
 func TestProjectRestoreStateFails(t *testing.T) {
 	testcases := []restoreStateTestCase{
-		{input: SchedulingState{"some_other_name", 0, time.Now().Add(-time.Hour)}},
+		{input: statedumper.SchedulingState{"some_other_name", 0, time.Now().Add(-time.Hour)}},
 	}
 
 	for _, testcase := range testcases {
 		project, _ := NewProject("test_project", applicants2, EveryHour)
 
-		if err := project.RestoreState(&testcase.input); err == nil {
+		if err := project.RestoreState(testcase.input); err == nil {
 			t.Errorf("testcase '%v': must have failed", testcase.input)
 			continue
 		}
@@ -126,22 +128,22 @@ func TestProjectDumpState(t *testing.T) {
 		return
 	}
 
-	state, err := NewSchedulingState(buf)
+	state, err := statedumper.NewSchedulingState(buf)
 	if err != nil {
 		t.Errorf("could not parse state: %v", err)
 		return
 	}
 
-	if state.name != project.Name() {
-		t.Errorf("expected '%s', got '%s'", project.Name(), state.name)
+	if state.Name != project.Name() {
+		t.Errorf("expected '%s', got '%s'", project.Name(), state.Name)
 		return
 	}
-	if state.currentPerson != project.currentPerson {
-		t.Errorf("expected '%d', got '%d'", project.currentPerson, state.currentPerson)
+	if state.CurrentPerson != project.currentPerson {
+		t.Errorf("expected '%d', got '%d'", project.currentPerson, state.CurrentPerson)
 		return
 	}
-	if !state.timeOfLastChange.Equal(currTime) {
-		t.Errorf("expected '%s', got '%s'", currTime, state.timeOfLastChange)
+	if !state.TimeOfLastChange.Equal(currTime) {
+		t.Errorf("expected '%s', got '%s'", currTime, state.TimeOfLastChange)
 		return
 	}
 }

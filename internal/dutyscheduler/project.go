@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gibsn/duty_bot/internal/cfg"
+	"github.com/gibsn/duty_bot/internal/statedumper"
 )
 
 var (
@@ -104,16 +105,16 @@ func (p *Project) SetTimeOfLastChange(t time.Time) {
 	p.timeOfLastChange = t
 }
 
-func (p *Project) RestoreState(state *SchedulingState) error {
+func (p *Project) RestoreState(state statedumper.SchedulingState) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.Name() != state.name {
-		return fmt.Errorf("'%s' != '%s': %w", p.Name(), state.name, ErrNamesDoNotMatch)
+	if p.Name() != state.Name {
+		return fmt.Errorf("'%s' != '%s': %w", p.Name(), state.Name, ErrNamesDoNotMatch)
 	}
 
-	p.currentPerson = state.currentPerson
-	p.timeOfLastChange = state.timeOfLastChange
+	p.currentPerson = state.CurrentPerson
+	p.timeOfLastChange = state.TimeOfLastChange
 
 	return nil
 }

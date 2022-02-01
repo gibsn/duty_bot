@@ -1,4 +1,4 @@
-package dutyscheduler
+package statedumper
 
 import (
 	"bufio"
@@ -29,48 +29,52 @@ var (
 )
 
 type SchedulingState struct {
-	name             string
-	currentPerson    uint64
-	timeOfLastChange time.Time
+	Name             string
+	CurrentPerson    uint64
+	TimeOfLastChange time.Time
 }
 
-func NewSchedulingState(r io.Reader) (*SchedulingState, error) {
+func NewSchedulingState(r io.Reader) (SchedulingState, error) {
 	scanner := bufio.NewScanner(r)
 	linesParsed := 0
-	newState := &SchedulingState{}
+	newState := SchedulingState{}
 
 	for scanner.Scan() {
 		currLine := scanner.Text()
 
 		switch linesParsed {
 		case fieldNameIdx:
-			newState.name = currLine
+			newState.Name = currLine
 
 		case fieldCurrentPersonIdx:
 			currPerson, err := strconv.Atoi(scanner.Text())
 			if err != nil {
-				return nil, fmt.Errorf("invalid current person '%s': %w", currLine, err)
+				return SchedulingState{}, fmt.Errorf(
+					"invalid current person '%s': %w", currLine, err,
+				)
 			}
 
-			newState.currentPerson = uint64(currPerson)
+			newState.CurrentPerson = uint64(currPerson)
 
 		case fieldTSOfLastChangeIdx:
 			ts, err := strconv.Atoi(scanner.Text())
 			if err != nil {
-				return nil, fmt.Errorf("invalid ts of last change '%s': %w", currLine, err)
+				return SchedulingState{}, fmt.Errorf(
+					"invalid ts of last change '%s': %w", currLine, err,
+				)
 			}
 
-			newState.timeOfLastChange = time.Unix(int64(ts), 0)
+			newState.TimeOfLastChange = time.Unix(int64(ts), 0)
 		}
 
 		linesParsed++
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("invalid state file: %w", scanner.Err())
+		return SchedulingState{}, fmt.Errorf("invalid state file: %w", scanner.Err())
 	}
 	if linesParsed < len(stateFileScheme) {
-		return nil, ErrInsufficientStateFile
+		return SchedulingState{}, ErrInsufficientStateFile
 	}
 
 	return newState, nil

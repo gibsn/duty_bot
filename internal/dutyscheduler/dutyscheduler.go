@@ -2,9 +2,7 @@ package dutyscheduler
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 
 type stateDumper interface {
 	Dump(statedumper.Dumpable) error
+	GetState(string) (statedumper.SchedulingState, error)
 }
 
 type notifyChannel interface {
@@ -34,7 +33,9 @@ type DutyScheduler struct {
 
 	stateDumper stateDumper
 
-	shutdownInit   chan struct{}
+	shutdownOnce *sync.Once
+	shutdownInit chan struct{}
+
 	eventsFinished chan struct{}
 	mu             *sync.RWMutex
 }
@@ -78,6 +79,7 @@ func newDutySchedulerStopped(
 		cfg:            cfg,
 		stateDumper:    stateDumper,
 		eventsQ:        make(chan Event, 1),
+		shutdownOnce:   new(sync.Once),
 		shutdownInit:   make(chan struct{}),
 		eventsFinished: make(chan struct{}),
 		mu:             new(sync.RWMutex),
@@ -122,7 +124,7 @@ func (sch *DutyScheduler) initProject(cfg Config, dayOffsDB dayOffsDB) error {
 	sch.project.SetDayOffsDB(dayOffsDB)
 
 	if sch.cfg.StatePersistenceEnabled() {
-		sch.restoreStates()
+		sch.restoreState()
 	}
 
 	log.Printf("info: dutyscheduler [%s]: initialised project", sch.ProjectName())
@@ -130,68 +132,27 @@ func (sch *DutyScheduler) initProject(cfg Config, dayOffsDB dayOffsDB) error {
 	return nil
 }
 
-// func (sch *DutyScheduler) getProjectByName(name string) *Project {
-// 	for _, p := range sch.projects {
-// 		if p.Name() == name {
-// 			return p
-// 		}
-// 	}
-//
-// 	return nil
-// }
-//
-// TODO refactor
-func (sch *DutyScheduler) restoreStates() {
-	fileInfos, err := ioutil.ReadDir("./")
+func (sch *DutyScheduler) restoreState() {
+	state, err := sch.stateDumper.GetState(sch.ProjectName())
 	if err != nil {
 		log.Printf(
-			"error: dutyscheduler [%s]: could not restore states: %v", sch.ProjectName(), err,
+			"error: dutyscheduler [%s]: could not get scheduling state from state dumper: %v",
+			sch.ProjectName(), err,
+		)
+	}
+
+	if err := sch.project.RestoreState(state); err != nil {
+		log.Printf(
+			"error: dutyscheduler [%s]: could not restore states: %v",
+			sch.ProjectName(), err,
 		)
 		return
 	}
 
-	for _, fileInfo := range fileInfos {
-		fileName := fileInfo.Name()
-
-		if !IsStateFile(fileName) {
-			continue
-		}
-
-		file, err := os.Open(fileName)
-		if err != nil {
-			log.Printf(
-				"error: dutyscheduler [%s]: could not restore states from file '%s': %v",
-				sch.ProjectName(), fileName, err,
-			)
-			continue
-		}
-
-		state, err := NewSchedulingState(file)
-		if err != nil {
-			log.Printf(
-				"error: dutyscheduler [%s]: could not restore states from file '%s': %v",
-				sch.ProjectName(), fileName, err,
-			)
-			continue
-		}
-
-		if sch.ProjectName() != state.name {
-			continue
-		}
-
-		if err := sch.project.RestoreState(state); err != nil {
-			log.Printf(
-				"error: dutyscheduler [%s]: could not restore states: %v",
-				sch.ProjectName(), err,
-			)
-			continue
-		}
-
-		log.Printf("info: dutyscheduler [%s]: successfully restored state, "+
-			"current person of duty is %s, last change was %s",
-			sch.ProjectName(), sch.project.CurrentPerson(), sch.project.LastChange(),
-		)
-	}
+	log.Printf("info: dutyscheduler [%s]: successfully restored state, "+
+		"current person of duty is %s, last change was %s",
+		sch.ProjectName(), sch.project.CurrentPerson(), sch.project.LastChange(),
+	)
 }
 
 func (sch *DutyScheduler) eventsRoutine() {
@@ -262,7 +223,7 @@ func (sch *DutyScheduler) notificaionSenderRoutine() {
 	}
 }
 
-// TODO comment
+// SetNotifyChannel changes notify channel to the given.
 func (sch *DutyScheduler) SetNotifyChannel(ch notifyChannel) {
 	sch.mu.Lock()
 	defer sch.mu.Unlock()
@@ -270,26 +231,17 @@ func (sch *DutyScheduler) SetNotifyChannel(ch notifyChannel) {
 	sch.notifyChannel = ch
 }
 
-// // TODO comment
-// func (sch *DutyScheduler) SetDayOffsDB(dayOffsDB dayOffsDB) {
-// 	sch.project.SetDayOffsDB(dayOffsDB)
-// }
-//
-// // TODO comment
-// func (sch *DutyScheduler) SetStateDumper(stateDumper stateDumper) {
-// 	sch.stateDumper = stateDumper
-// }
-
 // ProjectName returns a name of the project that this scheduler processes.
 func (sch DutyScheduler) ProjectName() string {
 	return sch.cfg.Name
 }
 
+// Shutdown finished scheduler gracefully.
 func (sch *DutyScheduler) Shutdown() {
 	log.Printf("info: dutyscheduler [%s]: triggering shutdown", sch.ProjectName())
 
 	// stop generating new events
-	close(sch.shutdownInit)
+	sch.shutdownOnce.Do(func() { close(sch.shutdownInit) })
 	<-sch.eventsFinished
 
 	if err := sch.notifyChannel.Shutdown(); err != nil {

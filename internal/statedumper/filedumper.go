@@ -2,6 +2,7 @@ package statedumper
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -9,27 +10,54 @@ import (
 
 // TODO comment
 type FileDumper struct {
-	statesQ chan Dumpable
-	wg      sync.WaitGroup
+	dumpQ  chan Dumpable
+	states map[string]SchedulingState
+	wg     sync.WaitGroup
 }
 
 // TODO comment
-func NewFileDumper() *FileDumper {
+func NewFileDumper() (*FileDumper, error) {
 	fd := &FileDumper{
-		statesQ: make(chan Dumpable, 1),
+		dumpQ:  make(chan Dumpable, 1),
+		states: make(map[string]SchedulingState),
+	}
+
+	fileInfos, err := ioutil.ReadDir("./")
+	if err != nil {
+		return nil, fmt.Errorf("could not read dir: %v", err)
+	}
+
+	for _, fileInfo := range fileInfos {
+		fileName := fileInfo.Name()
+
+		if !IsStateFile(fileName) {
+			continue
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			return nil, fmt.Errorf("could not read file '%s': %v", fileName, err)
+		}
+
+		state, err := NewSchedulingState(file)
+		if err != nil {
+			return nil, fmt.Errorf("could not read state from file '%s': %v", fileName, err)
+		}
+
+		fd.states[state.Name] = state
 	}
 
 	fd.wg.Add(1)
 	go fd.stateSaverRoutine()
 
-	return fd
+	return fd, nil
 }
 
 // Dump writes the given project state in async way. Calling Dump after Shutdown
 // may result in panic.
 func (fd *FileDumper) Dump(state Dumpable) error {
 	select {
-	case fd.statesQ <- state:
+	case fd.dumpQ <- state:
 		return nil
 	default:
 	}
@@ -38,10 +66,20 @@ func (fd *FileDumper) Dump(state Dumpable) error {
 }
 
 // TODO comment
+func (fd *FileDumper) GetState(name string) (SchedulingState, error) {
+	state, ok := fd.states[name]
+	if !ok {
+		return state, ErrNotFound
+	}
+
+	return state, nil
+}
+
+// TODO comment
 func (fd *FileDumper) stateSaverRoutine() {
 	defer fd.wg.Done()
 
-	for p := range fd.statesQ {
+	for p := range fd.dumpQ {
 		if err := fd.stateSaverRoutineImpl(p); err != nil {
 			log.Printf("error: [%s] could not dump state to disk, scheduling will start "+
 				"from beginning in case of restart", p.Name(),
@@ -77,7 +115,7 @@ func (fd *FileDumper) stateSaverRoutineImpl(state Dumpable) (err error) {
 func (fd *FileDumper) Shutdown() {
 	log.Print("info: filedumper: shutting down")
 
-	close(fd.statesQ)
+	close(fd.dumpQ)
 	fd.wg.Wait()
 
 	log.Print("info: filedumper: shutdown finished")

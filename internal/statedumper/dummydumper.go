@@ -11,3 +11,7 @@ func NewDummyDumper() DummyDumper {
 func (DummyDumper) Dump(_ Dumpable) error {
 	return nil
 }
+
+func (DummyDumper) GetState(_ string) (SchedulingState, error) {
+	return SchedulingState{}, nil
+}

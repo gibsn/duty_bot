@@ -12,7 +12,8 @@ make
 Duty Bot uses yaml for configuration, you can derive your own from the self-documented [example](https://github.com/gibsn/duty_bot/blob/main/duty_bot_example.yaml) in this repository.
 
 ## Notification channel
-Currently only MyTeam is supported, but you can make a pull request for any other notification channel you need. There are two things you need to do, the first is to implement the notifyChannel interface:
+Currently only MyTeam is supported, but you can make a pull request for any other notification channel you need. There are two things you need to do:
+1. Implement the notifyChannel interface:
 ```golang
 type notifyChannel interface {
 	Send(string) error
@@ -20,7 +21,7 @@ type notifyChannel interface {
 }
 ```
 
-The second is to provide a way to configure your notification channel from yaml.
+2. Provide a way to configure your notification channel from yaml
 
 ## Persistence
 Duty Bot is robust to restarts because it persists current state for each project on disk. It does not use any external dependency like MySQL or any other DB but stores states as simple files on FS.

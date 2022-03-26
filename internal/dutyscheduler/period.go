@@ -14,6 +14,8 @@ const (
 	EveryHour   PeriodType = "every hour"
 	EveryDay    PeriodType = "every day"
 	EveryWeek   PeriodType = "every week"
+	Every2Weeks PeriodType = "every 2 weeks"
+	Every4Weeks PeriodType = "every 4 weeks"
 )
 
 func (t PeriodType) Validate() error {
@@ -27,6 +29,10 @@ func (t PeriodType) Validate() error {
 	case EveryDay:
 		fallthrough
 	case EveryWeek:
+		fallthrough
+	case Every2Weeks:
+		fallthrough
+	case Every4Weeks:
 		return nil
 	}
 
@@ -45,6 +51,10 @@ func (t PeriodType) ToDuration() time.Duration {
 		return 24 * time.Hour
 	case EveryWeek:
 		return 7 * 24 * time.Hour
+	case Every2Weeks:
+		return 2 * 7 * 24 * time.Hour
+	case Every4Weeks:
+		return 4 * 7 * 24 * time.Hour
 	}
 
 	panic("unsupported period type")

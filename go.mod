@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/anatoliyfedorenko/isdayoff v1.0.2
+	github.com/emersion/go-webdav v0.3.1
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mail-ru-im/bot-golang v0.0.0-20200509193603-2c56a20fca87
 	github.com/mitchellh/mapstructure v1.4.3

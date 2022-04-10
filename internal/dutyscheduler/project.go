@@ -24,6 +24,10 @@ type dayOffsDB interface {
 	IsDayOff(time.Time) (bool, error)
 }
 
+type vacationDB interface {
+	IsOnVacation(string, time.Time) (bool, error)
+}
+
 // Project represents an actual project with employes that take duty cyclically
 // after given period of time
 type Project struct {
@@ -34,7 +38,9 @@ type Project struct {
 
 	timeOfLastChange time.Time // previous time the person was changed
 	period           PeriodType
-	dayOffsDB        dayOffsDB // if not nil, use for info about dayoffs
+
+	dayOffsDB  dayOffsDB  // if not nil, use for info about dayoffs
+	vacationDB vacationDB // if not nil, use for info about vacations
 
 	mu *sync.RWMutex
 }
@@ -94,9 +100,19 @@ func (p *Project) NextPerson() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.currentPerson++
+	// protect against possible infinite loop
+	for personsTried := 0; personsTried < len(p.dutyApplicants); personsTried++ {
+		p.currentPerson++
+		currentPersonName := p.dutyApplicants[int(p.currentPerson)%len(p.dutyApplicants)]
 
-	return p.dutyApplicants[int(p.currentPerson)%len(p.dutyApplicants)]
+		if p.shouldConsiderVacations() && p.isOnVacation(currentPersonName) {
+			continue
+		}
+
+		return currentPersonName
+	}
+
+	return ""
 }
 
 func (p *Project) SetTimeOfLastChange(t time.Time) {
@@ -134,6 +150,14 @@ func (p *Project) shouldConsiderHolidays() bool {
 	return p.dayOffsDB != nil
 }
 
+func (p *Project) SetVacationD(db vacationDB) {
+	p.vacationDB = db
+}
+
+func (p *Project) shouldConsiderVacations() bool {
+	return p.vacationDB != nil
+}
+
 func (p *Project) isDayOff(t time.Time) bool {
 	if !p.shouldConsiderHolidays() {
 		return isWeekEndDay(t)
@@ -151,6 +175,16 @@ func (p *Project) isDayOff(t time.Time) bool {
 	}
 
 	return isDayOff
+}
+
+func (p *Project) isOnVacation(person string) bool {
+	isOnVacation, err := p.vacationDB.IsOnVacation(person, time.Now())
+	if err != nil {
+		log.Printf("error: could not check whether '%s' is on vacation: %v", person, err)
+		return false
+	}
+
+	return isOnVacation
 }
 
 // shouldChangePerson implements the main logic for ShouldChangePerson

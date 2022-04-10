@@ -1,6 +1,13 @@
 # github.com/anatoliyfedorenko/isdayoff v1.0.2
 ## explicit
 github.com/anatoliyfedorenko/isdayoff
+# github.com/emersion/go-ical v0.0.0-20200224201310-cd514449c39e
+github.com/emersion/go-ical
+# github.com/emersion/go-webdav v0.3.1
+## explicit
+github.com/emersion/go-webdav
+github.com/emersion/go-webdav/caldav
+github.com/emersion/go-webdav/internal
 # github.com/hako/durafmt v0.0.0-20190612201238-650ed9f29a84
 github.com/hako/durafmt
 # github.com/konsorten/go-windows-terminal-sequences v1.0.1

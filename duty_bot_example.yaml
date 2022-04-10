@@ -6,13 +6,24 @@ projects:
     persist: false                             # save states to disk to mitigate restarts
     channel: empty                             # channel for scheduler notifications (stdout|myteam)
     skip_dayoffs: false                        # skip duty change at day offs
+    vacation:
+      type: ""                                 # possible options: caldav
+      caldav_settings:
+        user: ""                               # caldav user
+        password: ""                           # caldav password
+        host: ""                               # caldav host
+        timeout: "5s"                          # caldav timeout
+        calendar_name: ""                      # name of calendar with vacation data
+        person_regexp: "(.*)"                  # person name will be distinguished from the event name using this regexp
+        cache_interval: 7                      # number of days to cache info about
+        recache_period: 24h                    # how often to refetch info about vacations
     myteam:
       token: ""                                # myteam bot token
       chat_id: ''                              # myteam chat id where to send messages
       api_url: 'https://myteam.mail.ru/bot/v1' # myteam API url
       timeout: 5s                              # myteam API timeout
 production_cal:
-  enabled: false                             # use production calendar to find out about holidays
-  timeout: 5s                                # API timeout
-  cache_interval: 7                          # number of days to cache info about
-  recache_period: 24h                        # how often to refetch production calendar
+  enabled: false                               # use production calendar to find out about holidays
+  timeout: 5s                                  # API timeout
+  cache_interval: 7                            # number of days to cache info about
+  recache_period: 24h                          # how often to refetch production calendar

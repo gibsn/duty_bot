@@ -8,6 +8,10 @@ import (
 	"sync"
 )
 
+const (
+	dumperQueueCap = 16
+)
+
 // FileDumper is an implementation of a StateDumper that uses
 // simple files on disk.
 type FileDumper struct {
@@ -20,7 +24,7 @@ type FileDumper struct {
 // for a faster future access.
 func NewFileDumper() (*FileDumper, error) {
 	fd := &FileDumper{
-		dumpQ:  make(chan Dumpable, 1),
+		dumpQ:  make(chan Dumpable, dumperQueueCap),
 		states: make(map[string]SchedulingState),
 	}
 

@@ -99,3 +99,7 @@ func (err *HTTPError) Error() string {
 		return s
 	}
 }
+
+func (err *HTTPError) Unwrap() error {
+	return err.Err
+}

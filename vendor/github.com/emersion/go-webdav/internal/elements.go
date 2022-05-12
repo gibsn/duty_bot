@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -107,7 +108,7 @@ func (ms *Multistatus) Get(p string) (*Response, error) {
 		resp := &ms.Responses[i]
 		for _, h := range resp.Hrefs {
 			if path.Clean(h.Path) == p {
-				return resp, resp.Status.Err()
+				return resp, resp.Err()
 			}
 		}
 	}
@@ -134,8 +135,47 @@ func NewOKResponse(path string) *Response {
 	}
 }
 
+func NewErrorResponse(path string, err error) *Response {
+	code := http.StatusInternalServerError
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		code = httpErr.Code
+	}
+
+	var errElt *Error
+	errors.As(err, &errElt)
+
+	href := Href{Path: path}
+	return &Response{
+		Hrefs:               []Href{href},
+		Status:              &Status{Code: code},
+		ResponseDescription: err.Error(),
+		Error:               errElt,
+	}
+}
+
+func (resp *Response) Err() error {
+	if resp.Status == nil || resp.Status.Code/100 == 2 {
+		return nil
+	}
+
+	var err error = resp.Error
+	if resp.ResponseDescription != "" {
+		if err != nil {
+			err = fmt.Errorf("%v (%w)", resp.ResponseDescription, err)
+		} else {
+			err = fmt.Errorf("%v", resp.ResponseDescription)
+		}
+	}
+
+	return &HTTPError{
+		Code: resp.Status.Code,
+		Err:  err,
+	}
+}
+
 func (resp *Response) Path() (string, error) {
-	err := resp.Status.Err()
+	err := resp.Err()
 	var path string
 	if len(resp.Hrefs) == 1 {
 		path = resp.Hrefs[0].Path
@@ -152,7 +192,7 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		if err := resp.Status.Err(); err != nil {
+		if err := resp.Err(); err != nil {
 			return err
 		}
 		for _, propstat := range resp.Propstats {
@@ -340,11 +380,27 @@ type GetETag struct {
 type ETag string
 
 func (etag *ETag) UnmarshalText(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
+
+	var (
+		firstRune = b[0]
+		s         string
+	)
+
+	if firstRune != '\'' && firstRune != '"' {
+		*etag = ETag(b)
+		return nil
+	}
+
 	s, err := strconv.Unquote(string(b))
 	if err != nil {
 		return fmt.Errorf("webdav: failed to unquote ETag: %v", err)
 	}
+
 	*etag = ETag(s)
+
 	return nil
 }
 

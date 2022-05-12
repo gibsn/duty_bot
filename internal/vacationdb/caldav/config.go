@@ -1,4 +1,4 @@
-package vacationdb
+package caldav
 
 import (
 	"fmt"
@@ -20,8 +20,6 @@ const (
 )
 
 type Config struct {
-	prefix string
-
 	User     string
 	Password string
 
@@ -42,10 +40,8 @@ const (
 	defaultRecachePeriod = 24 * time.Hour
 )
 
-func NewConfig(prefix string) *Config {
-	c := &Config{
-		prefix: prefix,
-	}
+func NewConfig() *Config {
+	c := &Config{}
 
 	return c
 }
@@ -70,11 +66,11 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-func (c *Config) Print() {
-	paramNameFactory := cfg.ParamWithPrefix(c.prefix)
+func (c *Config) Print(prefix string) {
+	paramNameFactory := cfg.ParamWithPrefix(prefix)
 
 	log.Printf("%s: %v", paramNameFactory(userParamName), c.User)
-	log.Printf("%s: %v", paramNameFactory(passwordParamName), c.Password)
+	log.Printf("%s: ***", paramNameFactory(passwordParamName))
 	log.Printf("%s: %v", paramNameFactory(hostParamName), c.Host)
 	log.Printf("%s: %v", paramNameFactory(timeoutParamName), c.Timeout)
 	log.Printf("%s: %v", paramNameFactory(calendarNameParamName), c.CalendarName)

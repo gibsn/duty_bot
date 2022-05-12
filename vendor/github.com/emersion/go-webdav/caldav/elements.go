@@ -2,6 +2,7 @@ package caldav
 
 import (
 	"encoding/xml"
+	"fmt"
 	"time"
 
 	"github.com/emersion/go-webdav/internal"
@@ -12,11 +13,16 @@ const namespace = "urn:ietf:params:xml:ns:caldav"
 var (
 	calendarHomeSetName = xml.Name{namespace, "calendar-home-set"}
 
-	calendarDescriptionName   = xml.Name{namespace, "calendar-description"}
-	supportedCalendarDataName = xml.Name{namespace, "supported-calendar-data"}
-	maxResourceSizeName       = xml.Name{namespace, "max-resource-size"}
+	calendarDescriptionName           = xml.Name{namespace, "calendar-description"}
+	supportedCalendarDataName         = xml.Name{namespace, "supported-calendar-data"}
+	supportedCalendarComponentSetName = xml.Name{namespace, "supported-calendar-component-set"}
+	maxResourceSizeName               = xml.Name{namespace, "max-resource-size"}
 
-	calendarName = xml.Name{namespace, "calendar"}
+	calendarQueryName    = xml.Name{namespace, "calendar-query"}
+	calendarMultigetName = xml.Name{namespace, "calendar-multiget"}
+
+	calendarName     = xml.Name{namespace, "calendar"}
+	calendarDataName = xml.Name{namespace, "calendar-data"}
 )
 
 // https://tools.ietf.org/html/rfc4791#section-6.2.1
@@ -35,6 +41,12 @@ type calendarDescription struct {
 type supportedCalendarData struct {
 	XMLName xml.Name           `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-data"`
 	Types   []calendarDataType `xml:"calendar-data"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-5.2.3
+type supportedCalendarComponentSet struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set"`
+	Comp    []comp   `xml:"comp"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.6
@@ -87,19 +99,49 @@ type compFilter struct {
 
 // https://tools.ietf.org/html/rfc4791#section-9.7.2
 type propFilter struct {
-	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav prop-filter"`
+	XMLName      xml.Name      `xml:"urn:ietf:params:xml:ns:caldav prop-filter"`
+	Name         string        `xml:"name,attr"`
+	IsNotDefined *struct{}     `xml:"is-not-defined,omitempty"`
+	TimeRange    *timeRange    `xml:"time-range,omitempty"`
+	TextMatch    *textMatch    `xml:"text-match,omitempty"`
+	ParamFilter  []paramFilter `xml:"param-filter,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.7.3
+type paramFilter struct {
+	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav param-filter"`
 	Name         string     `xml:"name,attr"`
 	IsNotDefined *struct{}  `xml:"is-not-defined,omitempty"`
-	TimeRange    *timeRange `xml:"time-range,omitempty"`
 	TextMatch    *textMatch `xml:"text-match,omitempty"`
-	// TODO: param-filter
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.7.5
 type textMatch struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav text-match"`
-	Text    string   `xml:",chardata"`
-	// TODO: collation, negate-condition
+	XMLName         xml.Name        `xml:"urn:ietf:params:xml:ns:caldav text-match"`
+	Text            string          `xml:",chardata"`
+	Collation       string          `xml:"collation,attr,omitempty"`
+	NegateCondition negateCondition `xml:"negate-condition,attr,omitempty"`
+}
+
+type negateCondition bool
+
+func (nc *negateCondition) UnmarshalText(b []byte) error {
+	switch s := string(b); s {
+	case "yes":
+		*nc = true
+	case "no":
+		*nc = false
+	default:
+		return fmt.Errorf("caldav: invalid negate-condition value: %q", s)
+	}
+	return nil
+}
+
+func (nc negateCondition) MarshalText() ([]byte, error) {
+	if nc {
+		return []byte("yes"), nil
+	}
+	return nil, nil
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.9
@@ -159,4 +201,26 @@ type prop struct {
 type calendarDataResp struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
 	Data    []byte   `xml:",chardata"`
+}
+
+type reportReq struct {
+	Query    *calendarQuery
+	Multiget *calendarMultiget
+	// TODO: CALDAV:free-busy-query
+}
+
+func (r *reportReq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var v interface{}
+	switch start.Name {
+	case calendarQueryName:
+		r.Query = &calendarQuery{}
+		v = r.Query
+	case calendarMultigetName:
+		r.Multiget = &calendarMultiget{}
+		v = r.Multiget
+	default:
+		return fmt.Errorf("caldav: unsupported REPORT root %q %q", start.Name.Space, start.Name.Local)
+	}
+
+	return d.DecodeElement(v, &start)
 }

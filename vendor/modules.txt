@@ -3,7 +3,7 @@
 github.com/anatoliyfedorenko/isdayoff
 # github.com/emersion/go-ical v0.0.0-20200224201310-cd514449c39e
 github.com/emersion/go-ical
-# github.com/emersion/go-webdav v0.3.1
+# github.com/emersion/go-webdav v0.3.1 => github.com/gibsn/go-webdav v0.3.2-0.20220511212135-85f98a968374
 ## explicit
 github.com/emersion/go-webdav
 github.com/emersion/go-webdav/caldav
@@ -26,6 +26,7 @@ github.com/mailru/easyjson/jwriter
 ## explicit
 github.com/mitchellh/mapstructure
 # github.com/sirupsen/logrus v1.4.2
+## explicit
 github.com/sirupsen/logrus
 # github.com/stretchr/testify v1.7.0
 ## explicit
@@ -40,3 +41,4 @@ golang.org/x/sys/unix
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 ## explicit
+# github.com/emersion/go-webdav => github.com/gibsn/go-webdav v0.3.2-0.20220511212135-85f98a968374

@@ -40,6 +40,14 @@ type CalDAV struct {
 	personParser *regexp.Regexp
 }
 
+// initCalendar discovers the current user principal and the given calendar path.
+// Generally, when discovering principal, we should issue a PROPFIND request with
+// the 'current-user-principal' and follow all redirects. Since Mail.Ru CalDAV
+// server uses the 301 status to trigger a redirect, http.Client issues the next
+// request with type GET instead of PROPFIND which leads to a Bad Request. To
+// mitigate this flow we start with finding the last Location in the chain of
+// redirects and then issue a PROPFIND request with 'current-user-principal' to
+// that specific URL.
 func (cd *CalDAV) initCalendar(cfg Config) error {
 	tr := NewRedirectionTraverser()
 
@@ -52,7 +60,6 @@ func (cd *CalDAV) initCalendar(cfg Config) error {
 
 	tr.SetAuth(cfg.User, cfg.Password)
 
-	// TODO describe Mail.RU flow
 	pathToPrincipal, err := tr.GetLastLocation("PROPFIND", contextPath)
 	if err != nil {
 		return fmt.Errorf("failed finding current user principal: %w", err)

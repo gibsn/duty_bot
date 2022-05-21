@@ -46,6 +46,51 @@ func TestProjectNextPerson(t *testing.T) {
 	}
 }
 
+type dummyVacationDB struct {
+	enabled          bool
+	personOnVacation string
+}
+
+func (db dummyVacationDB) IsOnVacation(p string, date time.Time) (bool, error) {
+	if p == db.personOnVacation {
+		return db.enabled, nil
+	}
+
+	return false, nil
+}
+
+func TestProjectNextPersonWithVacationDB(t *testing.T) {
+	project, _ := NewProject("test_project", applicants2, EverySecond)
+
+	applicantsParsed := strings.Split(applicants2, ",")
+	firstPerson, secondPerson := applicantsParsed[0], applicantsParsed[1]
+
+	project.SetVacationDB(dummyVacationDB{true, secondPerson})
+
+	nextPerson := project.NextPerson()
+	if nextPerson != firstPerson {
+		t.Errorf("first NextPerson call must return the first person")
+	}
+
+	nextPerson = project.NextPerson()
+	if nextPerson != firstPerson {
+		t.Errorf(
+			"second NextPerson call must return the same person " +
+				"since the second person is on vacation",
+		)
+	}
+
+	// imitating end of vacation
+	project.SetVacationDB(dummyVacationDB{false, secondPerson})
+
+	nextPerson = project.NextPerson()
+	if nextPerson != secondPerson {
+		t.Errorf(
+			"this NextPerson call must have returned a second applicant because vacation has ended",
+		)
+	}
+}
+
 type restoreStateTestCase struct {
 	input              statedumper.SchedulingState
 	nextPerson         string

@@ -11,12 +11,13 @@ import (
 type VacationType string
 
 const (
-	caldavType VacationType = "caldav"
+	CalDAVType VacationType = "caldav"
 )
 
 func (vt VacationType) Validate() error {
+	// nolint: gocritic
 	switch vt {
-	case caldavType:
+	case CalDAVType:
 		return nil
 	}
 
@@ -48,8 +49,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid %s: %w", typeParamName, err)
 	}
 
+	// nolint: gocritic
 	switch c.Type {
-	case caldavType:
+	case CalDAVType:
 		if err := c.CalDAV.Validate(); err != nil {
 			return fmt.Errorf("invalid %s: %w", caldavSettingsParamName, err)
 		}
@@ -68,8 +70,9 @@ func (c Config) Print(prefix string) {
 	log.Printf("%s: %v", paramNameFactory(enabledParamName), c.Enabled)
 	log.Printf("%s: %v", paramNameFactory(typeParamName), c.Type)
 
+	// nolint: gocritic
 	switch c.Type {
-	case caldavType:
+	case CalDAVType:
 		c.CalDAV.Print(prefix + "." + caldavSettingsParamName)
 	}
 }

@@ -2,13 +2,15 @@ package dutyscheduler
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/gibsn/duty_bot/internal/notifychannel"
 	"github.com/gibsn/duty_bot/internal/notifychannel/myteam"
 	"github.com/gibsn/duty_bot/internal/statedumper"
+	"github.com/gibsn/duty_bot/internal/vacationdb"
 )
 
 type stateDumper interface {
@@ -25,6 +27,8 @@ type notifyChannel interface {
 // On any change it sends a notification to the given communication channel.
 type DutyScheduler struct {
 	cfg Config
+
+	logger *logrus.Entry
 
 	project *Project
 
@@ -52,8 +56,6 @@ func NewDutyScheduler(
 	stateDumper stateDumper,
 	dayOffsDB dayOffsDB,
 ) (*DutyScheduler, error) {
-	log.Printf("info: dutyscheduler [%s]: initialising", cfg.Name)
-
 	sch, err := newDutySchedulerStopped(cfg, stateDumper, dayOffsDB)
 	if err != nil {
 		return nil, err
@@ -62,7 +64,7 @@ func NewDutyScheduler(
 	go sch.eventsRoutine()
 	go sch.notificaionSenderRoutine()
 
-	log.Printf("info: dutyscheduler [%s]: successfully initialised", sch.ProjectName())
+	sch.logger.Info("successfully initialised")
 
 	return sch, nil
 }
@@ -76,7 +78,11 @@ func newDutySchedulerStopped(
 	dayOffsDB dayOffsDB,
 ) (*DutyScheduler, error) {
 	sch := &DutyScheduler{
-		cfg:            cfg,
+		cfg: cfg,
+		logger: logrus.WithFields(map[string]interface{}{
+			"component": "duty_scheduler",
+			"project":   cfg.Name,
+		}),
 		stateDumper:    stateDumper,
 		eventsQ:        make(chan Event, 1),
 		shutdownOnce:   new(sync.Once),
@@ -85,11 +91,28 @@ func newDutySchedulerStopped(
 		mu:             new(sync.RWMutex),
 	}
 
+	sch.logger.Info("initialising")
+
 	if err := sch.initNotifyChannel(); err != nil {
 		return nil, fmt.Errorf("could not init notification channel: %w", err)
 	}
-	if err := sch.initProject(cfg, dayOffsDB); err != nil {
+	if err := sch.initProject(cfg); err != nil {
 		return nil, err
+	}
+
+	sch.project.SetDayOffsDB(dayOffsDB)
+
+	if cfg.Vacation.Enabled {
+		sch.logger.Info("initialising vacationdb")
+
+		vacationDB, err := vacationdb.NewVacationDB(cfg.Vacation, sch.logger)
+		if err != nil {
+			return nil, err
+		}
+
+		sch.project.SetVacationDB(vacationDB)
+
+		sch.logger.Info("successfully initialised vacationdb")
 	}
 
 	return sch, nil
@@ -109,25 +132,24 @@ func (sch *DutyScheduler) initNotifyChannel() (err error) {
 		return err
 	}
 
-	log.Printf("info: dutyscheduler [%s]: initialised notification channel", sch.ProjectName())
+	sch.logger.Info("initialised notification channel")
 
 	return nil
 }
 
-func (sch *DutyScheduler) initProject(cfg Config, dayOffsDB dayOffsDB) error {
+func (sch *DutyScheduler) initProject(cfg Config) error {
 	newProject, err := NewProjectFromConfig(cfg)
 	if err != nil {
 		return fmt.Errorf("invalid project: %w", err)
 	}
 
 	sch.project = newProject
-	sch.project.SetDayOffsDB(dayOffsDB)
 
 	if sch.cfg.StatePersistenceEnabled() {
 		sch.restoreState()
 	}
 
-	log.Printf("info: dutyscheduler [%s]: initialised project", sch.ProjectName())
+	sch.logger.Info("initialised project")
 
 	return nil
 }
@@ -135,25 +157,18 @@ func (sch *DutyScheduler) initProject(cfg Config, dayOffsDB dayOffsDB) error {
 func (sch *DutyScheduler) restoreState() {
 	state, err := sch.stateDumper.GetState(sch.ProjectName())
 	if err != nil {
-		log.Printf(
-			"error: dutyscheduler [%s]: could not get scheduling state from state dumper: %v",
-			sch.ProjectName(), err,
-		)
-
+		sch.logger.Errorf("could not get scheduling state from state dumper: %v", err)
 		return
 	}
 
 	if err := sch.project.RestoreState(state); err != nil {
-		log.Printf(
-			"error: dutyscheduler [%s]: could not restore states: %v",
-			sch.ProjectName(), err,
-		)
+		sch.logger.Errorf("could not restore states: %v", err)
 		return
 	}
 
-	log.Printf("info: dutyscheduler [%s]: successfully restored state, "+
-		"current person of duty is %s, last change was %s",
-		sch.ProjectName(), sch.project.CurrentPerson(), sch.project.LastChange(),
+	sch.logger.Infof(
+		"successfully restored state, current person of duty is %s, last change was %s",
+		sch.project.CurrentPerson(), sch.project.LastChange(),
 	)
 }
 
@@ -171,25 +186,17 @@ LOOP:
 
 			if sch.project.StatePersistenceEnabled() {
 				if err := sch.stateDumper.Dump(sch.project); err != nil {
-					log.Printf(
-						"error: dutyscheduler [%s]: could not dump state for project: %v",
-						sch.ProjectName(), err,
-					)
+					sch.logger.Errorf("could not dump state for project: %v", err)
 				}
 			}
 		} else {
-			log.Printf(
-				"info: dutyscheduler [%s]: timer triggered, but change of person is not needed",
-				sch.ProjectName(),
-			)
+			sch.logger.Info("timer triggered, but change of person is not needed")
 		}
 
 		timeToSleep := sch.project.TimeTillNextChange()
 
-		log.Printf(
-			"info: dutyscheduler [%s]: next scheduling in %s",
-			sch.ProjectName(), timeToSleep,
-		)
+		sch.logger.Printf("next scheduling in %s", timeToSleep)
+
 		timer := time.NewTimer(timeToSleep)
 
 		select {
@@ -200,15 +207,12 @@ LOOP:
 		}
 	}
 
-	log.Printf("info: dutyscheduler [%s]: finished scheduler loop", sch.ProjectName())
+	sch.logger.Info("finished scheduler loop")
 }
 
 func (sch *DutyScheduler) notificaionSenderRoutine() {
 	for e := range sch.eventsQ {
-		log.Printf(
-			"info: dutyscheduler [%s]: new person on duty: %s",
-			sch.ProjectName(), e.newPerson,
-		)
+		sch.logger.Infof("new person on duty: %s", e.newPerson)
 
 		notificationText := fmt.Sprintf(sch.project.cfg.MessagePattern, e.newPerson)
 
@@ -217,10 +221,7 @@ func (sch *DutyScheduler) notificaionSenderRoutine() {
 		sch.mu.RUnlock()
 
 		if err := notifyChannelCopy.Send(notificationText); err != nil {
-			log.Printf(
-				"error: dutyscheduler [%s]: could not send update: %v",
-				sch.ProjectName(), err,
-			)
+			sch.logger.Infof("could not send update: %v", err)
 		}
 	}
 }
@@ -240,22 +241,16 @@ func (sch DutyScheduler) ProjectName() string {
 
 // Shutdown finished scheduler gracefully.
 func (sch *DutyScheduler) Shutdown() {
-	log.Printf("info: dutyscheduler [%s]: triggering shutdown", sch.ProjectName())
+	sch.logger.Info("triggering shutdown")
 
 	// stop generating new events
 	sch.shutdownOnce.Do(func() { close(sch.shutdownInit) })
 	<-sch.eventsFinished
 
 	if err := sch.notifyChannel.Shutdown(); err != nil {
-		log.Printf(
-			"error: dutyscheduler [%s]: could not shut down communicaion channel: %v",
-			sch.ProjectName(), err,
-		)
+		sch.logger.Infof("could not shut down communicaion channel: %v", err)
 	}
 
-	log.Printf(
-		"info: dutyscheduler [%s]: notification channel has been shut down", sch.ProjectName(),
-	)
-
-	log.Printf("info: dutyscheduler [%s]: shutdown complete", sch.ProjectName())
+	sch.logger.Info("notification channel has been shut down")
+	sch.logger.Info("shutdown complete")
 }

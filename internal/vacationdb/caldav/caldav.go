@@ -2,11 +2,12 @@ package caldav
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 
+	"github.com/emersion/go-ical"
 	webdav "github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/caldav"
 	"github.com/sirupsen/logrus"
@@ -14,9 +15,17 @@ import (
 
 const (
 	wellKnownCalDAV = "/.well-known/caldav"
+	mailRUCalDAV    = "https://calendar.mail.ru"
 )
 
-// TODO
+type Event struct {
+	Person     string
+	Start, End time.Time
+}
+
+// CalDAV connects to the given caldav server, discovers the calendar path
+// and starts fetching events for that calendar periodically. When initialized,
+// it can tell whether the given user has a corresponding vacation event.
 type CalDAV struct {
 	cfg Config
 
@@ -25,8 +34,10 @@ type CalDAV struct {
 	client   *caldav.Client
 	calendar *caldav.Calendar
 
-	mu               *sync.Mutex
-	vacationSchedule map[time.Time][]string // map[date][]names
+	mu               *sync.RWMutex
+	vacationSchedule schedule
+
+	personParser *regexp.Regexp
 }
 
 func (cd *CalDAV) initCalendar(cfg Config) error {
@@ -97,15 +108,29 @@ func (cd *CalDAV) initCalendar(cfg Config) error {
 	return nil
 }
 
-// TODO
-func NewCalDAV(cfg Config) (*CalDAV, error) {
+// NewCalDAV detects a path to calendars, discovers the user's principal,
+// finds a path for the given calendar and does an initial events fetch.
+// It also starts a background routine, that fetches events periodically.
+func NewCalDAV(cfg Config, logger *logrus.Entry) (*CalDAV, error) {
+	if logger == nil {
+		logger = logrus.NewEntry(logrus.StandardLogger())
+	}
+
 	cd := &CalDAV{
-		logger: logrus.WithFields(map[string]interface{}{
+		logger: logger.WithFields(map[string]interface{}{
 			"component": "caldav",
 			"host":      cfg.Host,
 		}),
-		mu: &sync.Mutex{},
+		cfg: cfg,
+		mu:  &sync.RWMutex{},
 	}
+
+	personRegexp, err := regexp.Compile(cfg.PersonRegexp)
+	if err != nil {
+		return nil, fmt.Errorf("could not compile person regexp '%s': %w", cfg.PersonRegexp, err)
+	}
+
+	cd.personParser = personRegexp
 
 	if err := cd.initCalendar(cfg); err != nil {
 		return nil, fmt.Errorf("could not detect path for calendar '%s': %w", cfg.CalendarName, err)
@@ -124,6 +149,88 @@ func roundToDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
+func genCalendarQueryRequest(start, end time.Time) *caldav.CalendarQuery {
+	return &caldav.CalendarQuery{
+		CompRequest: caldav.CalendarCompRequest{
+			Name:  ical.CompCalendar,
+			Props: []string{ical.PropVersion},
+			Comps: []caldav.CalendarCompRequest{
+				{
+					Name: ical.CompEvent,
+					Props: []string{
+						ical.PropSummary, ical.PropDateTimeStart, ical.PropDateTimeEnd,
+					},
+				},
+				{
+					Name: ical.CompTimezone,
+				},
+			},
+		},
+		CompFilter: caldav.CompFilter{
+			Name: ical.CompCalendar,
+			Comps: []caldav.CompFilter{
+				{
+					Name: ical.CompEvent,
+					// FYI: server-side filtering is not supported for Mail.RU
+					Start: start,
+					End:   end,
+				},
+			},
+		},
+	}
+}
+
+func (cd *CalDAV) parseEvent(
+	eventComponent *ical.Component, loc *time.Location,
+) (event Event, err error) {
+	// currently Mail.Ru server returns invalid timezone for some events
+	if cd.cfg.Host == mailRUCalDAV {
+		loc = time.Local
+	}
+
+	summary := eventComponent.Props.Get(ical.PropSummary)
+	if summary == nil {
+		return event, fmt.Errorf("%s is nil", ical.PropSummary)
+	}
+
+	summaryParsed := cd.personParser.FindStringSubmatch(summary.Value)
+	if len(summaryParsed) == 0 {
+		return event, fmt.Errorf("could not find person in summary '%s'", summary.Value)
+	}
+
+	eventParsed := ical.Event{Component: eventComponent}
+
+	start, err := eventParsed.DateTimeStart(loc)
+	if err != nil {
+		return event, fmt.Errorf("%s: %w", ical.PropDateTimeStart, err)
+	}
+
+	end, err := eventParsed.DateTimeEnd(loc)
+	if err != nil {
+		return event, fmt.Errorf("%s: %w", ical.PropDateTimeEnd, err)
+	}
+
+	event.Person = summaryParsed[1]
+	event.Start = start
+	event.End = end
+
+	return event, nil
+}
+
+func (cd *CalDAV) parseTimeZone(tzComponent *ical.Component) (*time.Location, error) {
+	prop := tzComponent.Props.Get(ical.PropTimezoneID)
+	if prop == nil {
+		return nil, fmt.Errorf("could not find %s prop", ical.PropTimezoneID)
+	}
+
+	loc, err := time.LoadLocation(prop.Value)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse location '%s': %w", prop.Value, err)
+	}
+
+	return loc, nil
+}
+
 func (cd *CalDAV) doFetchEvents() error {
 	tmNow := time.Now()
 
@@ -132,42 +239,55 @@ func (cd *CalDAV) doFetchEvents() error {
 	end := roundToDay(tmNow.Add(cacheIntervalDuration))
 
 	// mail.ru currently does not support time filtering, query returns all events
-	log.Printf("fetching vacation info in range [%v, %v]", start, end)
+	cd.logger.Infof("fetching vacation info in range [%v, %v]", start, end)
 
-	query := &caldav.CalendarQuery{
-		CompRequest: caldav.CalendarCompRequest{
-			Name:  "VCALENDAR",
-			Props: []string{"VERSION"},
-			Comps: []caldav.CalendarCompRequest{
-				{
-					Name:  "VEVENT",
-					Props: []string{"SUMMARY", "DTSTART", "DTEND"},
-				},
-				{
-					Name: "VTIMEZONE",
-				},
-			},
-		},
-		CompFilter: caldav.CompFilter{
-			Name: "VCALENDAR",
-			Comps: []caldav.CompFilter{
-				{
-					Name:  "VEVENT",
-					Start: start,
-					End:   end,
-				},
-			},
-		},
-	}
-
-	_, err := cd.client.QueryCalendar(cd.calendar.Path, query)
+	objects, err := cd.client.QueryCalendar(cd.calendar.Path, genCalendarQueryRequest(start, end))
 	if err != nil {
 		return fmt.Errorf("could not fetch events: %w", err)
 	}
-	//
-	// for _, object := range objects {
-	// 	log.Println(object.Data.Component.Children[1].Props["SUMMARY"][0].Value)
-	// }
+
+	events := make([]Event, 0, len(objects))
+
+	for _, object := range objects {
+		// at first we must parse timezone so that we can interpret
+		// the event timestamps in the proper location
+		var (
+			compTimeZone *ical.Component
+			compEvent    *ical.Component
+		)
+
+		for _, comp := range object.Data.Component.Children {
+			switch comp.Name {
+			case ical.CompTimezone:
+				compTimeZone = comp
+			case ical.CompEvent:
+				compEvent = comp
+			}
+		}
+
+		loc, err := cd.parseTimeZone(compTimeZone)
+		if err != nil {
+			cd.logger.Warnf("could not parse timezone %v: %v", compTimeZone, err)
+			continue
+		}
+
+		event, err := cd.parseEvent(compEvent, loc)
+		if err != nil {
+			cd.logger.Warnf("could not parse event %v: %v", compEvent, err)
+			continue
+		}
+
+		cd.logger.Infof(
+			"got vacation for '%s' in range [%v, %v)",
+			event.Person, event.Start, event.End,
+		)
+
+		events = append(events, event)
+	}
+
+	cd.mu.Lock()
+	cd.vacationSchedule = newSchedule(events)
+	cd.mu.Unlock()
 
 	return nil
 }
@@ -175,12 +295,16 @@ func (cd *CalDAV) doFetchEvents() error {
 func (cd *CalDAV) fetcherRoutine() {
 	for range time.After(cd.cfg.RecachePeriod * 24 * time.Hour) {
 		if err := cd.doFetchEvents(); err != nil {
-			log.Printf("error: could not fetch events: %v", err)
+			cd.logger.Errorf("could not fetch events: %v", err)
 		}
 	}
 }
 
-// TODO
-func (cd *CalDAV) IsOnVacation(person string, date time.Time) (bool, error) {
-	return false, fmt.Errorf("not implemented")
+// IsOnVacation reports whether there is a corresponding vacation event in the
+// calendar for the given user at the given date.
+func (cd *CalDAV) IsOnVacation(p string, date time.Time) (bool, error) {
+	cd.mu.RLock()
+	defer cd.mu.RUnlock()
+
+	return cd.vacationSchedule.isOnVacation(person(p), date), nil
 }

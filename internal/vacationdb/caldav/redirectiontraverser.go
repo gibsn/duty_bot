@@ -41,10 +41,12 @@ func (tr *RedirectionTraverser) GetLastLocation(method string, url string) (stri
 		return "", fmt.Errorf("could not create request: %w", err)
 	}
 
-	_, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed resolving .well-known: %w", err)
 	}
+
+	resp.Body.Close()
 
 	if lastLocation == "" {
 		return "", fmt.Errorf("server provided no Location header")

@@ -12,7 +12,7 @@ duty_bot:
 
 bin/golangci-lint:
 	@echo "getting golangci-lint for $$(uname -m)/$$(uname -s)"
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.29.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.43.0
 
 lint: bin/golangci-lint
 	bin/golangci-lint run -v -c ./build/ci/golangci.yml --new-from-rev=$(TARGET_BRANCH)

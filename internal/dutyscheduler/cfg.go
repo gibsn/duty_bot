@@ -7,6 +7,7 @@ import (
 	cfgUtil "github.com/gibsn/duty_bot/internal/cfg"
 	"github.com/gibsn/duty_bot/internal/notifychannel"
 	"github.com/gibsn/duty_bot/internal/notifychannel/myteam"
+	vacationdb "github.com/gibsn/duty_bot/internal/vacationdb"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 	skipDayOffsParamName = "skip_dayoffs"
 	channelParamName     = "channel"
 	persistParamName     = "persist"
+	vacationParamName    = "vacation"
 )
 
 const (
@@ -31,6 +33,8 @@ type Config struct {
 
 	Period      string
 	SkipDayOffs bool `mapstructure:"skip_dayoffs"`
+
+	Vacation vacationdb.Config
 
 	Channel string
 	Persist bool
@@ -60,6 +64,7 @@ func (cfg *Config) Validate() error {
 	if len(cfg.Period) == 0 {
 		cfg.Period = string(defaultPeriod)
 	}
+
 	if err := PeriodType(cfg.Period).Validate(); err != nil {
 		return fmt.Errorf("%s '%s': %w", paramNameFactory(periodParamName), cfg.Period, err)
 	}
@@ -79,6 +84,10 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("%s '%s': %w", paramNameFactory(channelParamName), cfg.Channel, err)
 	}
 
+	if err := cfg.Vacation.Validate(); err != nil {
+		return fmt.Errorf("invalid vacation config: %w", err)
+	}
+
 	return nil
 }
 
@@ -95,6 +104,8 @@ func (cfg *Config) Print() {
 	if notifychannel.Type(cfg.Channel) == notifychannel.MyTeamChannelType {
 		cfg.MyTeam.Print()
 	}
+
+	cfg.Vacation.Print(cfg.Name + "." + vacationParamName)
 }
 
 // StatePersistenceEnabled reports whether any project has state persistence enabled

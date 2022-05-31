@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/gibsn/duty_bot/internal/cfg"
 	"github.com/gibsn/duty_bot/internal/statedumper"
+	vacationdb "github.com/gibsn/duty_bot/internal/vacationdb"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -29,12 +30,16 @@ type dayOffsDB interface {
 type Project struct {
 	cfg Config
 
+	logger *logrus.Entry
+
 	dutyApplicants []string
 	currentPerson  uint64 // idx into dutyApplicants
 
 	timeOfLastChange time.Time // previous time the person was changed
 	period           PeriodType
-	dayOffsDB        dayOffsDB // if not nil, use for info about dayoffs
+
+	dayOffsDB  dayOffsDB             // if not nil, use for info about dayoffs
+	vacationDB vacationdb.VacationDB // if not nil, use for info about vacations
 
 	mu *sync.RWMutex
 }
@@ -61,6 +66,11 @@ func NewProjectFromConfig(config Config) (*Project, error) {
 		currentPerson: math.MaxUint64, // so that the first NextPerson call returns the first person
 		period:        PeriodType(config.Period),
 		mu:            &sync.RWMutex{},
+		logger: logrus.WithFields(map[string]interface{}{
+			"component": "project",
+			"project":   config.Name,
+		},
+		),
 	}
 
 	if len(config.Applicants) == 0 {
@@ -74,6 +84,10 @@ func NewProjectFromConfig(config Config) (*Project, error) {
 	}
 
 	return p, nil
+}
+
+func (p *Project) SetLogger(logger *logrus.Entry) {
+	p.logger = logger
 }
 
 func (p *Project) CurrentPerson() string {
@@ -94,9 +108,20 @@ func (p *Project) NextPerson() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.currentPerson++
+	// protect against possible infinite loop
+	for personsTried := 0; personsTried < len(p.dutyApplicants); personsTried++ {
+		p.currentPerson++
+		currentPersonName := p.dutyApplicants[int(p.currentPerson)%len(p.dutyApplicants)]
 
-	return p.dutyApplicants[int(p.currentPerson)%len(p.dutyApplicants)]
+		if p.shouldConsiderVacations() && p.isOnVacation(currentPersonName) {
+			p.logger.Infof("%s is on vacation today, skipping", currentPersonName)
+			continue
+		}
+
+		return currentPersonName
+	}
+
+	return ""
 }
 
 func (p *Project) SetTimeOfLastChange(t time.Time) {
@@ -134,6 +159,14 @@ func (p *Project) shouldConsiderHolidays() bool {
 	return p.dayOffsDB != nil
 }
 
+func (p *Project) SetVacationDB(db vacationdb.VacationDB) {
+	p.vacationDB = db
+}
+
+func (p *Project) shouldConsiderVacations() bool {
+	return p.vacationDB != nil
+}
+
 func (p *Project) isDayOff(t time.Time) bool {
 	if !p.shouldConsiderHolidays() {
 		return isWeekEndDay(t)
@@ -141,16 +174,23 @@ func (p *Project) isDayOff(t time.Time) bool {
 
 	isDayOff, err := p.dayOffsDB.IsDayOff(t)
 	if err != nil {
-		log.Printf("error: [%s] could not check if %s is a day off: %v", p.Name(), t, err)
-		log.Printf(
-			"warning: [%s] not considering holidays due to an error, will only consider weekends",
-			p.Name(),
-		)
+		p.logger.Errorf("could not check if %s is a day off: %v", t, err)
+		p.logger.Warnf("not considering holidays due to an error, will only consider weekends")
 
 		return isWeekEndDay(t)
 	}
 
 	return isDayOff
+}
+
+func (p *Project) isOnVacation(person string) bool {
+	isOnVacation, err := p.vacationDB.IsOnVacation(person, time.Now())
+	if err != nil {
+		p.logger.Errorf("could not check whether '%s' is on vacation: %v", person, err)
+		return false
+	}
+
+	return isOnVacation
 }
 
 // shouldChangePerson implements the main logic for ShouldChangePerson

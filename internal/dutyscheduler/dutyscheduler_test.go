@@ -40,7 +40,7 @@ func TestDutyScheduler(t *testing.T) {
 	sch.watchdog(t)
 }
 
-// currently not working because NewConfig reset flags which produces error
+// currently not working because NewConfig resets flags which produces error
 // func TestDutyScheduleWithFailedProductionCal(t *testing.T) {
 // 	config := cfg.NewConfig()
 //

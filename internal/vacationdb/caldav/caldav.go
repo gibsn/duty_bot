@@ -300,7 +300,7 @@ func (cd *CalDAV) doFetchEvents() error {
 }
 
 func (cd *CalDAV) fetcherRoutine() {
-	for range time.After(cd.cfg.RecachePeriod * 24 * time.Hour) {
+	for range time.After(cd.cfg.RecachePeriod) {
 		if err := cd.doFetchEvents(); err != nil {
 			cd.logger.Errorf("could not fetch events: %v", err)
 		}

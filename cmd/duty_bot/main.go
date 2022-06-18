@@ -5,9 +5,15 @@ import (
 
 	"github.com/gibsn/duty_bot/internal/app/dutybot"
 	"github.com/gibsn/duty_bot/internal/app/dutybot/cfg"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+
 	log.Println("info: starting duty_bot")
 
 	config, err := cfg.NewConfig()
